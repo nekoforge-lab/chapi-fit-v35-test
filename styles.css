@@ -180,3 +180,10 @@ nav button:not(.active){background:linear-gradient(180deg,#e9f8f8,#d9edef);box-s
 /* Weekly balance text uses the same deficit/surplus palette as its bars. */
 #weeklyCard .negative{color:#2478bf}
 #weeklyCard .positive{color:#bc4554}
+
+/* v3.5 test additions */
+.brand-logo{display:block;width:min(220px,54vw);height:auto;max-height:72px;object-fit:contain;object-position:left center}
+.date-card .quick-actions{grid-column:1/-1;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.quick-actions button{padding:10px 5px;font-size:13px;white-space:normal}
+.calendar .marks{font-size:10px;white-space:normal;overflow-wrap:anywhere;text-align:center;min-height:14px}
+@media(max-width:360px){.calendar .marks{font-size:9px}.brand-logo{width:min(190px,52vw)}}
