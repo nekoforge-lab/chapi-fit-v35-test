@@ -194,3 +194,6 @@ header{margin-bottom:10px}
 /* UI-03: Q&A shortcut */
 .faq-shortcut{display:inline-block;margin:8px 0 3px;padding:8px 2px;font-size:13px;font-weight:650;line-height:1.6;text-underline-offset:3px}
 #aiFaq{scroll-margin-top:84px}
+
+/* AI food import */
+.ai-food-card textarea{width:100%;min-height:90px}.ai-item-details{margin:12px 0;padding:12px;border:1px solid #b9d4dc;border-radius:12px}.ai-item{padding:12px 0;border-top:1px solid #d5e5ec}.ai-item label{display:block;margin:7px 0}.ai-item input,.ai-item textarea{width:100%}#aiPreview{overflow-wrap:anywhere}#aiPreview p{font-size:.9rem}#backToTop{width:100%}
