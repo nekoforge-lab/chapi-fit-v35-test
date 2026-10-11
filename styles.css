@@ -197,3 +197,21 @@ header{margin-bottom:10px}
 
 /* AI food import */
 .ai-food-card textarea{width:100%;min-height:90px}.ai-item-details{margin:12px 0;padding:12px;border:1px solid #b9d4dc;border-radius:12px}.ai-item{padding:12px 0;border-top:1px solid #d5e5ec}.ai-item label{display:block;margin:7px 0}.ai-item input,.ai-item textarea{width:100%}#aiPreview{overflow-wrap:anywhere}#aiPreview p{font-size:.9rem}#backToTop{width:100%}
+
+/* Chapi Fit v3.5: independent help tutorial */
+.guide-launch-row{display:flex;justify-content:flex-end;margin:0 2px 10px}
+.guide-launch{background:#e9f7f5!important;border:1.5px solid #40afa9!important;color:#176e70!important;font-weight:800!important;border-radius:12px!important;padding:9px 16px!important;min-height:44px}
+.guide-overlay{position:fixed;inset:0;z-index:9999;background:#123d48a8;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+body.guide-open{overflow:hidden}
+.guide-panel{width:min(100%,440px);max-height:min(90dvh,740px);overflow:auto;overscroll-behavior:contain;background:#f8fcfc;border:2px solid #9cdbd8;border-radius:22px;padding:17px;box-sizing:border-box;box-shadow:0 18px 55px #103e4b55;color:#1b5962}
+.guide-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:17px}
+.guide-close{min-height:42px!important;padding:8px 12px!important;background:#e6f4f4!important;color:#1d6870!important;border:1px solid #b6dcda!important;border-radius:11px!important;font-size:13px!important}
+.guide-progress{margin:15px 0 13px;display:flex;align-items:center;gap:13px;font-size:12px;font-weight:800;color:#3a7c80}
+.guide-dots{display:flex;gap:5px;flex:1}.guide-dots span{flex:1;height:6px;background:#d9e8e8;border-radius:9px}.guide-dots span.active{background:#0da59e}
+.guide-slide{min-height:290px;background:linear-gradient(160deg,#fff,#eaf8f8);border:1px solid #cde9e6;border-radius:17px;padding:20px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center;touch-action:pan-y;box-sizing:border-box}
+.guide-illustration{width:88px;height:88px;border-radius:22px;display:grid;place-items:center;background:#d8f2ee;border:2px solid #8ed5cf;font-size:44px;margin-bottom:13px}
+.guide-slide h2{color:#166a6d;font-size:20px;line-height:1.4;margin:0 0 10px}
+.guide-slide p{font-size:15px;line-height:1.7;margin:0 0 12px;color:#285f66}
+.guide-slide .guide-hint{font-size:13px;background:#f0f8f7;border-left:3px solid #1baaa0;border-radius:8px;padding:10px;text-align:left;width:100%;box-sizing:border-box;margin:0}
+.guide-controls{display:flex;justify-content:space-between;gap:10px;margin-top:15px}.guide-controls button{min-height:46px;min-width:105px}.guide-controls button:disabled{opacity:.4}
+@media(max-width:370px){.guide-panel{padding:12px}.guide-slide{padding:14px 12px;min-height:265px}.guide-slide h2{font-size:18px}}
