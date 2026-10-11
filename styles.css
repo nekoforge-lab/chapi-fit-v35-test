@@ -266,3 +266,6 @@ body > #backToTop.back-to-top {
   z-index:100!important; touch-action:manipulation;
 }
 body > #backToTop.back-to-top[hidden] {display:none!important;}
+
+/* v3.5 meal-save UX */
+.meal-save{display:block;width:100%;margin:10px 0 5px}.ai-json-actions{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}.ai-json-actions button{flex:1 1 125px}.ai-food-card #aiAcceptTop,.ai-food-card #aiAccept{width:100%;margin:8px 0}.ai-food-card #aiAcceptTop:disabled{display:none}.date-card{gap:8px;padding-top:13px;padding-bottom:13px}.date-card .quick-actions{margin:0}.date-card .quick-actions button{min-height:44px}.date-card .faq-shortcut{margin:0;padding:0;font-size:12px;line-height:1.4}.faq-shortcut{margin:3px 0;padding:2px}.ai-preview-macros{gap:8px;flex-wrap:wrap}
