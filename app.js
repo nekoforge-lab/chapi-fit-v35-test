@@ -134,10 +134,12 @@ ${description||'文章での説明なし。添付写真がある場合は写真�
 3. 複合料理の栄養表示やユーザーの「料理全体で○kcal」がある場合は、その値に含まれる油・ソースを別計上しないでください。別計上が必要なものは衣や追加の調理油など実際に表示に含まれない部分に限り、二重計上を避けてください。
 4. 食材の誤認を避けてください。見た目だけで味噌汁の具や肉の部位を断定せず、疑わしいものは「推定」と明記してください。推定が積み重なり過大評価にならないよう料理全体の妥当性も確認してください。
 5. 食品ごとに「実測／商品ラベル／写真推定／一般値／仮定あり／不明」の根拠、量、加熱前後、皮の有無、衣・吸油などを簡潔に記録してください。
+6. マンナン米、低糖質食品、代替食品などは普通の食品の栄養値をそのまま流用せず、商品名・栄養成分表示・混合比率・炊飯後の重量などを確認してください。メーカーが示すカロリー削減率を使う場合は適用条件を確かめ、カロリー削減率をP/F/Cにも機械的に当てはめないでください。確認できない場合は仮定として明示してください。
 
 【会話の進め方：重要】
 ・最初の回答ではJSONを出さず、日本語の読みやすい一覧で食品ごとの推定量・kcal・P/F/Cと合計、根拠・仮定を示してください。
 ・カロリーに大きく影響する不確かな点を優先して、確認事項を少数だけ質問してください。質問だけで回答を止めず、まず暫定推定を提示してください。
+・確認事項は必ず「【確認したいこと】」という見出しの下に、番号付き箇条書きで、質問の要点を太字にして目立たせてください。本文中に質問を埋もれさせないでください。汁物・煮物など具材が見分けにくい料理は、具材を確認する質問も候補にしてください。
 ・ユーザーの訂正を受けたら再計算して変更点を説明し、確認を求めてください。ユーザーが「OK」「確定」「JSONを出して」などと伝えたら最終JSONを発行してください。ユーザーが確認を省略してJSONを希望した場合も発行してください。
 ・説明も写真もなく食品を特定できない場合は食品を創作せず、情報提供を依頼してください。
 
@@ -149,7 +151,33 @@ ${description||'文章での説明なし。添付写真がある場合は写真�
 }
 function aiParse(text){if(text.length>50000)throw Error('テキストが長すぎます（5万文字以内）');const blocks=[...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map(m=>m[1].trim());let data=null;for(const t of [...blocks,text.trim()]){try{const parsed=JSON.parse(t);if(parsed?.format==='chapi-food-v1'){data=parsed;break}}catch(e){}}if(!data)throw Error('chapi-food-v1形式のJSONが見つかりません');if(!Array.isArray(data.items)||!data.items.length||data.items.length>40)throw Error('食品は1〜40件にしてください');return data.items.map(it=>{if(!it||typeof it!=='object'||typeof it.name!=='string'||!it.name.trim()||it.name.length>120)throw Error('食品名が不正です');const item={name:it.name.trim(),amount:String(it.amount??'').slice(0,100),note:String(it.note??'').slice(0,500)};for(const f of AI_FIELDS){const v=it[f];if(v===null||v===''||v===undefined){item[f]='';continue}if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>10000)throw Error(`${it.name}の${f}が不正です`);item[f]=String(v)}return item})}
 let aiPending=null;
-function aiPreview(){try{aiPending=aiParse($('aiResult').value);const sum=aiSum(aiPending),root=$('aiPreview');root.innerHTML='';const title=document.createElement('h3');title.textContent=`取り込み前の確認：${aiPending.length}品`;root.append(title);for(const it of aiPending){const line=document.createElement('p');line.textContent=`${it.name}（${it.amount}）：${it.kcal||'未入力'} kcal / P ${it.p||'未入力'} / F ${it.f||'未入力'} / C ${it.c||'未入力'}｜${it.note}`;root.append(line)}const total=document.createElement('p');total.textContent=`合計：${sum.kcal||'未算出'} kcal / P ${sum.p||'未算出'} g / F ${sum.f||'未算出'} g / C ${sum.c||'未算出'} g`;root.append(total);const warning=document.createElement('p');warning.className='warning';warning.textContent='⚠ AI推定値です。分量・調理油・食品ラベル等の根拠を確認してください。空欄の栄養素は0ではありません。';root.append(warning);$('aiAccept').disabled=false}catch(e){aiPending=null;$('aiAccept').disabled=true;$('aiPreview').textContent='取り込み不可：'+e.message}}
+function aiPreview(){
+ try{
+  aiPending=aiParse($('aiResult').value);
+  const sum=aiSum(aiPending),root=$('aiPreview');root.replaceChildren();
+  const title=document.createElement('h3');title.textContent=`取り込み内容を確認（${aiPending.length}品）`;root.append(title);
+  const total=document.createElement('section');total.className='ai-preview-total';
+  const label=document.createElement('div');label.className='ai-preview-caption';label.textContent='合計カロリー';
+  const energy=document.createElement('strong');energy.className='ai-preview-energy';energy.textContent=`${sum.kcal===''?'未算出':sum.kcal} kcal`;
+  const macros=document.createElement('div');macros.className='ai-preview-macros';
+  for(const [f,name] of [['p','P'],['f','F'],['c','C']]){const cell=document.createElement('span');cell.textContent=`${name} ${sum[f]===''?'未算出':sum[f]+'g'}`;macros.append(cell)}
+  total.append(label,energy,macros);root.append(total);
+  const list=document.createElement('div');list.className='ai-preview-list';
+  for(const it of aiPending){
+   const card=document.createElement('section');card.className='ai-preview-card';
+   const heading=document.createElement('div');heading.className='ai-preview-heading';
+   const food=document.createElement('div');const name=document.createElement('strong');name.textContent=it.name;const amount=document.createElement('small');amount.textContent=it.amount||'分量未入力';food.append(name,amount);
+   const kcal=document.createElement('strong');kcal.className='ai-preview-kcal';kcal.textContent=`${it.kcal===''?'未入力':it.kcal} kcal`;
+   heading.append(food,kcal);
+   const macros=document.createElement('div');macros.className='ai-preview-macros';for(const [f,n] of [['p','P'],['f','F'],['c','C']]){const span=document.createElement('span');span.textContent=`${n} ${it[f]===''?'未入力':it[f]+'g'}`;macros.append(span)}
+   const details=document.createElement('details');details.className='ai-preview-note';const summary=document.createElement('summary');summary.textContent='推定根拠・不明点を見る';const note=document.createElement('p');note.textContent=it.note||'根拠の記載なし';details.append(summary,note);
+   card.append(heading,macros,details);list.append(card);
+  }
+  root.append(list);
+  const warning=document.createElement('p');warning.className='warning';warning.textContent='⚠ AI推定値です。分量・調理油・食品ラベル等の根拠を確認してください。空欄の栄養素は0ではありません。';root.append(warning);
+  $('aiAccept').disabled=false;
+ }catch(e){aiPending=null;$('aiAccept').disabled=true;$('aiPreview').textContent='取り込み不可：'+e.message}
+}
 function aiAccept(){if(!aiPending){notice('先に取り込み内容を確認してください');return}const key=$('aiMealSelect').value,name=C.meals.find(x=>x[0]===key)?.[1]||key,meal=draft.meals[key]||{};if((meal.skipped||AI_FIELDS.some(f=>C.nonnegative(meal[f]))||meal.aiItems?.length)&&!confirm(`${current}の${name}の数値と内訳を置き換えます。備考は保持します。よろしいですか？`))return;draft.meals[key]={...meal,aiItems:C.clone(aiPending),aiSource:'AI推定・要確認'};aiApplyTotals(key);$('aiPreview').textContent='取り込み内容を画面に反映しました。「この日を保存」を押すと端末に保存されます。';$('aiAccept').disabled=true;aiPending=null}
 
 function renderFood(){const totals=C.foodTotals(draft);$('foodDate').textContent=current;$('foodInputs').innerHTML='';for(const [key,name] of C.meals){const wrap=document.createElement('div');wrap.className='meal';const heading=document.createElement('h3');heading.textContent=name;wrap.append(heading);const skip=document.createElement('label');skip.className='check meal-skip';const skipInput=document.createElement('input');skipInput.type='checkbox';skipInput.checked=!!draft.meals?.[key]?.skipped;skipInput.onchange=()=>{draft.meals[key]={...(draft.meals[key]||{}),skipped:skipInput.checked};renderFood();renderEnergy()};skip.append(skipInput,'食べなかった');wrap.append(skip);const grid=document.createElement('div');grid.className='food-grid';if(skipInput.checked)grid.classList.add('meal-disabled');for(const [field,label] of [['kcal','kcal'],['p','P（g）'],['f','F（g）'],['c','C（g）']]){const inp=numberInput(label,draft.meals?.[key]?.[field],v=>{draft.meals[key]={...(draft.meals[key]||{}),[field]:v,aiStale:Array.isArray(draft.meals[key]?.aiItems)&&draft.meals[key].aiItems.length>0?true:draft.meals[key]?.aiStale};renderFoodSummary()});inp.querySelector('input').id=`food_${key}_${field}`;inp.querySelector('input').disabled=skipInput.checked;grid.append(inp)}wrap.append(grid);const noteField=textInput('備考（任意）',draft.meals?.[key]?.note||'',v=>{draft.meals[key]={...(draft.meals[key]||{}),note:v}},true);noteField.classList.add('meal-note');noteField.querySelector('textarea').id=`food_${key}_note`;noteField.querySelector('textarea').placeholder='料理名・量・食事の状況など';wrap.append(noteField);aiItemEditor(key,wrap);$('foodInputs').append(wrap)}$('foodComplete').checked=!!draft.foodComplete;renderFoodSummary()}
