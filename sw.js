@@ -1,4 +1,4 @@
-const CACHE='chapi-fit-shell-v35-mealsave-v1';
+const CACHE='chapi-fit-shell-v35-compactfood-v2';
 const SHELL=['./','./index.html','./styles.css?v=3.5-mealsave-v1','./core.js?v=3.5-ui07-week-sun1','./app.js?v=3.5-mealsave-v1','./guide.js?v=3.5-finish-v1','./manifest.webmanifest','./apple-touch-icon.png?v=3.5-coach2','./favicon-32.png?v=3.5-coach2','./genkun-0.png?v=3.5-coach2-fullbody','./genkun-1.png?v=3.5-coach2-fullbody','./genkun-2.png?v=3.5-coach2-fullbody','./genkun-3.png?v=3.5-coach2-fullbody','./genkun-4.png?v=3.5-coach2-fullbody','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)))});
 // Activate after old tabs close: do not swap code underneath unsaved input.
