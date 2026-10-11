@@ -326,3 +326,9 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
  .ai-food-summary{grid-template-columns:1fr}
  .ai-food-open{justify-self:start}
 }
+
+
+/* v3.5 release-candidate finishing touches */
+.date-card .faq-shortcut{grid-column:2;justify-self:end;text-align:right}
+.meal-head .meal-save{background:#0f7479!important;color:#fff!important;border-color:#0f7479!important;opacity:1!important;box-shadow:0 3px 0 #09565a!important}
+.meal-head .meal-save:hover{filter:brightness(.96)}
