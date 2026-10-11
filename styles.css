@@ -187,3 +187,10 @@ nav button:not(.active){background:linear-gradient(180deg,#e9f8f8,#d9edef);box-s
 .quick-actions button{padding:10px 5px;font-size:13px;white-space:normal}
 .calendar .marks{font-size:10px;white-space:normal;overflow-wrap:anywhere;text-align:center;min-height:14px}
 @media(max-width:360px){.calendar .marks{font-size:9px}.brand-logo{width:min(190px,52vw)}}
+
+/* UI-01: trim header whitespace only. */
+header{margin-bottom:10px}
+
+/* UI-03: Q&A shortcut */
+.faq-shortcut{display:inline-block;margin:8px 0 3px;padding:8px 2px;font-size:13px;font-weight:650;line-height:1.6;text-underline-offset:3px}
+#aiFaq{scroll-margin-top:84px}
