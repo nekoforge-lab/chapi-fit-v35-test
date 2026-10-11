@@ -251,3 +251,18 @@ body.guide-open{overflow:hidden}
 .ai-preview-kcal{font-size:1.03rem}
 @media(max-width:390px){.ai-preview-macros{gap:5px}.ai-preview-macros span{font-size:.75rem;padding:7px 3px}.ai-preview-card{padding:12px}}
 @media(prefers-reduced-motion:reduce){.back-to-top{transition:none}}
+
+/* Fixed scroll-to-top: isolate from app layout and generic button styles. */
+body > #backToTop.back-to-top {
+  position:fixed!important; inset:auto calc(16px + env(safe-area-inset-right, 0px)) calc(92px + env(safe-area-inset-bottom, 0px)) auto!important;
+  display:flex!important; align-items:center; justify-content:center;
+  box-sizing:border-box!important; width:48px!important; min-width:48px!important; max-width:48px!important;
+  height:48px!important; min-height:48px!important; max-height:48px!important;
+  flex:none!important; padding:0!important; margin:0!important;
+  border:3px solid #145d67!important; border-radius:50%!important;
+  background:#d7f1ef!important; background-image:none!important; color:#145d67!important;
+  box-shadow:0 3px 10px #163c4760,0 0 0 2px #ffffffdd!important;
+  font-size:24px!important; line-height:1!important; font-weight:800!important;
+  z-index:100!important; touch-action:manipulation;
+}
+body > #backToTop.back-to-top[hidden] {display:none!important;}
