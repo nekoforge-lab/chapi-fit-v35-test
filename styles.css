@@ -372,3 +372,4 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .food-report-action{margin:12px 0 4px}
 .food-report-action button{min-height:44px}
 @media(max-width:420px){.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}}
+\n.save-failed{color:#b92b2b;font-weight:700}\n
