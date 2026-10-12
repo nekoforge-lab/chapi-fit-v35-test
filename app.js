@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.7-preview-4c';
+const C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.7-preview-4d';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -75,7 +75,16 @@ function weightApproval(interactive=false){
  if(confirm(`体重 ${alert.value} kg は近い日付の記録と大きく異なります。\n${comparisons}\n\n入力値が正しい場合は「OK」で保存します。修正する場合は「キャンセル」を押してください。`)){
   confirmedWeightByDay.set(current,String(draft.weight));declinedWeightByDay.delete(current);return true
  }
- declinedWeightByDay.set(current,String(draft.weight));autoStatus('体重の確認待ち：入力は下書きとして保護しています',true);
+ // Cancel means discard only the rejected weight, not other unsaved fields.
+ const rejected=String(draft.weight);
+ const savedWeight=C.normalizeDay(store.days[current]).weight;
+ declinedWeightByDay.set(current,rejected);
+ draft.weight=savedWeight??'';
+ $('weight').value=draft.weight;
+ confirmedWeightByDay.delete(current);
+ if(dayDirty())journalDraft();else clearJournal();
+ autoStatus('体重の変更を取り消しました（ほかの下書きは保持）');
+ renderEnergy();
  return false;
 }
 function validAutoDraft(){
@@ -112,7 +121,7 @@ function sync(){if(!draft)return;draft.weight=$('weight').value;draft.note=$('da
 function renderWatch(){const on=$('watchEnabled').checked,active=$('watchMode').value==='active';$('watchInputRow').classList.toggle('hidden',!on);$('watchKcalLabel').textContent=active?'アクティブ消費カロリー（kcal）':'1日の総消費カロリー（kcal）';$('watchHint').textContent=!on?'従来の推定消費を使用します。':active?'推定基礎代謝（BMR）＋アクティブ消費で概算します。記録済み運動は追加しません。プロフィール不足・空欄・0の場合は従来計算に戻ります（0は未計測として警告）。':'総消費をそのまま採用します。生活活動係数・運動消費は追加しません。空欄・0の場合は従来計算に戻ります（0は未計測として警告）。';}
 function dayDirty(){sync();return JSON.stringify(draft)!==savedDraft}
 function changeDate(day){if(day!==current&&dayDirty()&&weightAlert()&&!weightApproval(false)){journalDraft();notice('体重の急変を確認するか修正してから日付を切り替えてください');$('recordDate').value=current;return false}if(day!==current&&dayDirty()){journalDraft();autoCommit()}if(!C.date(day)){notice('日付を確認してください');return false}if(day!==current&&dayDirty()&&!confirm('未保存の変更があります。下書きは保持されますが、日付を切り替えますか？')){$('recordDate').value=current;return false}if(day!==current)chooseDate(day);return true}
-function saveDay(){sync();if(!weightApproval(true)){journalDraft();return false}if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<=0)){notice('体重は0より大きい数値を入力してください');return false}for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('食事は0以上の数値で入力してください');return false}}if(draft.strengthWorkout){for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('筋トレ全体の時間・消費カロリーは0以上にしてください');return false}}}for(const sess of draft.sessions)for(const it of sess.items){for(const f of ['minutes','km','steps','kcal','rounds'])if(it[f]!==''&&it[f]!=null&&!C.nonnegative(it[f])){notice('運動の数値は0以上にしてください');return false}for(const st of it.roundEntries||[])for(const f of ['kg','rounds'])if(st[f]!==''&&st[f]!=null&&(!C.nonnegative(st[f])||(f==='rounds'&&!Number.isInteger(Number(st[f]))))){notice('サーキットの重量・周回数を確認してください');return false}for(const st of it.sets||[])for(const f of ['kg','reps','rir'])if(st[f]!==''&&st[f]!=null&&!C.nonnegative(st[f])){notice('セットの数値を確認してください');return false}}// Flag unusually large newly-entered food values without rewriting older records.
+function saveDay(){sync();if(!weightApproval(true))return false;if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<=0)){notice('体重は0より大きい数値を入力してください');return false}for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('食事は0以上の数値で入力してください');return false}}if(draft.strengthWorkout){for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('筋トレ全体の時間・消費カロリーは0以上にしてください');return false}}}for(const sess of draft.sessions)for(const it of sess.items){for(const f of ['minutes','km','steps','kcal','rounds'])if(it[f]!==''&&it[f]!=null&&!C.nonnegative(it[f])){notice('運動の数値は0以上にしてください');return false}for(const st of it.roundEntries||[])for(const f of ['kg','rounds'])if(st[f]!==''&&st[f]!=null&&(!C.nonnegative(st[f])||(f==='rounds'&&!Number.isInteger(Number(st[f]))))){notice('サーキットの重量・周回数を確認してください');return false}for(const st of it.sets||[])for(const f of ['kg','reps','rir'])if(st[f]!==''&&st[f]!=null&&!C.nonnegative(st[f])){notice('セットの数値を確認してください');return false}}// Flag unusually large newly-entered food values without rewriting older records.
 if(draft.watchEnabled&&draft.watchTotalKcal!==''&&(!Number.isInteger(Number(draft.watchTotalKcal))||Number(draft.watchTotalKcal)<0)){notice('ウォッチの消費カロリーは0以上の整数で入力してください');return false}
 const originalMeals=C.normalizeDay(store.days[current]).meals;
 const unusual=[];
