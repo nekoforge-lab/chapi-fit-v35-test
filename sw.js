@@ -1,5 +1,5 @@
-const CACHE='chapi-fit-shell-v36-exercise-1';
-const SHELL=['./','./index.html','./styles.css?v=3.6-exercise-1','./core.js?v=3.6-exercise-1','./app.js?v=3.6-exercise-1','./guide.js?v=3.5-finish-v1','./manifest.webmanifest','./apple-touch-icon.png?v=3.5-coach2','./favicon-32.png?v=3.5-coach2','./genkun-0.png?v=3.5-coach2-fullbody','./genkun-1.png?v=3.5-coach2-fullbody','./genkun-2.png?v=3.5-coach2-fullbody','./genkun-3.png?v=3.5-coach2-fullbody','./genkun-4.png?v=3.5-coach2-fullbody','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
+const CACHE='chapi-fit-shell-v36-exercise-layout-2';
+const SHELL=['./','./index.html','./styles.css?v=3.6-exercise-layout-2','./core.js?v=3.6-exercise-layout-2','./app.js?v=3.6-exercise-layout-2','./guide.js?v=3.5-finish-v1','./manifest.webmanifest','./apple-touch-icon.png?v=3.5-coach2','./favicon-32.png?v=3.5-coach2','./genkun-0.png?v=3.5-coach2-fullbody','./genkun-1.png?v=3.5-coach2-fullbody','./genkun-2.png?v=3.5-coach2-fullbody','./genkun-3.png?v=3.5-coach2-fullbody','./genkun-4.png?v=3.5-coach2-fullbody','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)))});
 // Activate after old tabs close: do not swap code underneath unsaved input.
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('chapi-fit-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

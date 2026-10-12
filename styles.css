@@ -343,3 +343,6 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .template-group{border:1px solid var(--line,#d9e2e8);border-radius:14px;margin:12px 0;padding:8px 12px}
 .template-group>summary{cursor:pointer;font-weight:700;padding:10px 4px}
 .template-group .template-card{margin:10px 0}
+
+/* Bodyweight without added load: keep header and fields in the same four columns. */
+.set-head.no-weight,.set-row.no-weight{grid-template-columns:22px minmax(0,1fr) minmax(0,.8fr) 35px}
