@@ -346,3 +346,9 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 
 /* Bodyweight without added load: keep header and fields in the same four columns. */
 .set-head.no-weight,.set-row.no-weight{grid-template-columns:22px minmax(0,1fr) minmax(0,.8fr) 35px}
+
+/* v3.6 stage 4: clockwise intake, counterclockwise exercise gauge. */
+.energy-donut,.energy-donut.energy-breakdown-ready{background:#f5fafc;transform:none}
+.energy-donut:before,.energy-donut.energy-breakdown-ready:before{inset:20%;z-index:1;background:#fff}
+.energy-ring-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:0}
+.energy-donut-center{z-index:2}
