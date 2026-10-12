@@ -332,3 +332,9 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .date-card .faq-shortcut{grid-column:2;justify-self:end;text-align:right}
 .meal-head .meal-save{background:#0f7479!important;color:#fff!important;border-color:#0f7479!important;opacity:1!important;box-shadow:0 3px 0 #09565a!important}
 .meal-head .meal-save:hover{filter:brightness(.96)}
+
+/* v3.6 meal quick actions: compact, finger-friendly on iPhone */
+.meal-quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.meal-quick-actions button{width:auto;min-height:40px;margin:0;padding:8px 12px;border-radius:10px;font-size:13px;font-weight:700}
+.meal-quick-actions .meal-copy{background:#eef9f9;color:#155c67;border:1px solid #a8d5d9}
+.meal-quick-actions .meal-delete{background:#fff5f5;color:#a52e38;border:1px solid #e9bfc4}
