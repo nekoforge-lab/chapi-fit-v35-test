@@ -23,9 +23,18 @@ function validateStore(s){if(!s||typeof s!=='object'||!s.days||Array.isArray(s.d
 function fromV1(data){const s=fresh();s.schemaRevision=2;for(const [d,v] of Object.entries(data||{})){if(!date(d)||!v||typeof v!=='object')continue;const items=(plans[v.plan]||[]).filter(k=>v.exercises?.[k]).map(k=>({...item(k),sets:clone(v.exercises[k].sets||[]),note:v.exercises[k].note||''}));s.days[d]={...clone(v),weight:v.weight??'',calories:v.calories??'',note:v.note||'',sessions:items.length?[{id:'v1-'+d,templateId:v.plan,name:{mon:'上半身のみ',thu:'下半身のみ',sat:'全身'}[v.plan],items}]:[]}}return s}
 function migrate(raw){validateStore(raw);const s=clone(raw);if((s.schemaRevision||0)<3){s.profile={...(s.profile||{})};if(s.profile.lifeActivity===undefined)s.profile.lifeActivity=s.profile.activity===undefined?1.2:null;s.foodTargets={kcal:2000,p:130,...(s.foodTargets||{})};s.foodTargets.locks={p:false,f:false,c:false,...(s.foodTargets.locks||{})};s.foodTargets.mode=s.foodTargets.mode||'g';s.foodTargets.purpose=s.foodTargets.purpose||'custom';const remain=Math.max(0,Number(s.foodTargets.kcal)-4*Number(s.foodTargets.p));if(!numeric(s.foodTargets.f))s.foodTargets.f=Math.min(Number(s.foodTargets.kcal)*.27,remain)/9;if(!numeric(s.foodTargets.c))s.foodTargets.c=Math.max(0,remain-9*Number(s.foodTargets.f))/4;for(const t of newTemplates())if(!s.templates.some(x=>x.id===t.id))s.templates.push(t);for(const t of s.templates)for(const i of t.items)if(i.id==='forearm'){if(i.annotation===undefined)i.annotation=forearmNote;if(i.tracking===undefined){i.tracking='rounds';i.rounds=2}}s.schemaRevision=3}if((s.schemaRevision||0)<4){for(const t of extraTemplates())if(!s.templates.some(x=>x.id===t.id))s.templates.push(t);s.schemaRevision=4}// Rename only untouched built-in defaults. Preserve customized templates and all day records.
  const walk=s.templates.find(t=>t.id==='walk');
- if(walk&&['ウォーキング','散歩・有酸素'].includes(walk.name)&&walk.items.length===1&&walk.items[0].id==='walk'&&['ウォーキング','散歩・有酸素'].includes(walk.items[0].name)){walk.name='散歩/ウォーキング';walk.items[0].name='散歩/ウォーキング'}
+ if(walk&&walk.items.length===1&&walk.items[0].id==='walk'){
+  if(['ウォーキング','散歩・有酸素','散歩'].includes(walk.name))walk.name='散歩/ウォーキング';
+  if(['ウォーキング','散歩・有酸素','散歩'].includes(walk.items[0].name))walk.items[0].name='散歩/ウォーキング';
+ }
  const cycle=s.templates.find(t=>t.id==='cf-cycling-v36');
  if(cycle&&cycle.name==='サイクリング'&&cycle.items.length===1&&cycle.items[0].kind==='cardio'&&cycle.items[0].name==='有酸素運動')cycle.items[0].name='サイクリング';
+ // Drop only exact duplicate, unmodified built-in cycling templates. Never delete custom templates.
+ const canonical=s.templates.find(t=>t.id==='cf-cycling-v36');
+ if(canonical&&canonical.name==='サイクリング'&&canonical.items.length===1&&canonical.items[0].id==='cycling'&&canonical.items[0].name==='サイクリング'){
+  const duplicate=t=>t!==canonical&&t.name==='サイクリング'&&t.items.length===1&&t.items[0].id==='cycling'&&t.items[0].name==='サイクリング'&&t.items[0].kind==='cardio'&&Object.keys(t.items[0]).every(k=>['id','name','kind'].includes(k));
+  s.templates=s.templates.filter(t=>!duplicate(t));
+ }
  s.goalHistory=s.goalHistory||[];return s}
 function normalizeDay(d){return {...{weight:'',calories:'',note:'',sessions:[],meals:{}},...clone(d||{}),sessions:clone(d?.sessions||[]),meals:clone(d?.meals||{})}}
 function weightAt(s,on,d){if(numeric(d?.weight)&&Number(d.weight)>0)return {weight:Number(d.weight),date:on};const ds=Object.keys(s.days).filter(k=>k<=on&&numeric(s.days[k].weight)&&Number(s.days[k].weight)>0).sort();if(!ds.length){const g=goalAt(s,on);return g&&Number(g.current)>0?{weight:Number(g.current),date:"体重目標の開始体重"}:null}const k=ds.at(-1);return {weight:Number(s.days[k].weight),date:k}}
