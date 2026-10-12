@@ -338,3 +338,8 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .meal-quick-actions button{width:auto;min-height:40px;margin:0;padding:8px 12px;border-radius:10px;font-size:13px;font-weight:700}
 .meal-quick-actions .meal-copy{background:#eef9f9;color:#155c67;border:1px solid #a8d5d9}
 .meal-quick-actions .meal-delete{background:#fff5f5;color:#a52e38;border:1px solid #e9bfc4}
+
+/* v3.6 exercise menu grouping */
+.template-group{border:1px solid var(--line,#d9e2e8);border-radius:14px;margin:12px 0;padding:8px 12px}
+.template-group>summary{cursor:pointer;font-weight:700;padding:10px 4px}
+.template-group .template-card{margin:10px 0}
