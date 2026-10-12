@@ -83,7 +83,7 @@ function drawIntakeGauge(root,total,food,exercise){
  svg.replaceChildren();
  const ns='http://www.w3.org/2000/svg',point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
  const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));svg.append(el);return el};
- const arc=(start,end,color)=>{if(end-start<0.001)return;const span=Math.min(360,end-start);if(span>=359.999){add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:color,'stroke-width':29});return}const [x1,y1]=point(start,91),[x2,y2]=point(start+span,91);add('path',{d:`M ${x1} ${y1} A 91 91 0 ${span>180?1:0} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':29})};
+ const arc=(start,end,color,{orange=false}={})=>{if(end-start<0.001)return;const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}const [x1,y1]=point(orange?start+span:start,r),[x2,y2]=point(orange?start:start+span,r);add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} ${orange?0:1} ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w})};
  const marker=(deg,thick)=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);add('line',{x1,y1,x2,y2,stroke:thick?'#263d49':'#f5f9fb','stroke-width':thick?4:2,'stroke-linecap':'round'})};
  add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:'#e7eff2','stroke-width':29});
  if(!(total>0&&Number.isFinite(total)))return;
@@ -92,13 +92,13 @@ function drawIntakeGauge(root,total,food,exercise){
  arc(0,toDeg(blue),'#3299bc');
  if(food>total)arc(0,toDeg(Math.min(food-total,total)),'#e96b78');
  if(exercise>0){
-  // Orange overlays blue/red on the same circular scale, one revolution at a time.
+  // Orange starts at the food endpoint and sweeps counterclockwise over blue, with the inner blue edge visible.
   const lower=Math.max(0,food-exercise),upper=food;
-  if(upper-lower>=total)arc(0,360,'#ef9b43');
-  else {let cursor=lower;while(cursor<upper-0.0001){const lap=Math.floor(cursor/total),boundary=(lap+1)*total,next=Math.min(upper,boundary);arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43');cursor=next}}
+  if(upper-lower>=total)arc(0,360,'#ef9b43',{orange:true});
+  else {let cursor=lower;while(cursor<upper-0.0001){const lap=Math.floor(cursor/total),boundary=(lap+1)*total,next=Math.min(upper,boundary);arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});cursor=next}}
   // Once exercise exceeds intake, continue counterclockwise from twelve o'clock.
   const extra=Math.min(exercise-food,total/2);
-  if(extra>0){const span=toDeg(extra),[x1,y1]=point(0,91),[x2,y2]=point(-span,91);add('path',{d:`M ${x1} ${y1} A 91 91 0 ${span>180?1:0} 0 ${x2} ${y2}`,fill:'none',stroke:'#ef9b43','stroke-width':29})}
+  if(extra>0){const span=toDeg(extra),[x1,y1]=point(0,94.625),[x2,y2]=point(-span,94.625);add('path',{d:`M ${x1} ${y1} A 94.625 94.625 0 ${span>180?1:0} 0 ${x2} ${y2}`,fill:'none',stroke:'#ef9b43','stroke-width':21.75})}
   marker(toDeg(food%total),false);
  }
  const net=food-exercise;
