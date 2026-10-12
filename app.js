@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.7-preview-4';
+const C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.7-preview-4a';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -47,8 +47,39 @@ function restoreJournal(){
   autoStatus('直前の入力を復元しました（下書き）');
  }catch(e){autoStatus('下書きの復元に失敗しました。元の記録は保持',true)}
 }
+// Compare with the nearest dated measurements, never with a fixed adult-only minimum.
+const confirmedWeightByDay=new Map();
+const declinedWeightByDay=new Map();
+function weightAlert(){
+ const raw=draft?.weight;
+ if(raw===''||raw===null||raw===undefined)return null;
+ const value=Number(raw);
+ if(!Number.isFinite(value)||value<=0)return null;
+ const neighbors=Object.entries(store.days).filter(([date,day])=>
+   date!==current&&C.date(date)&&C.numeric(day.weight)&&Number(day.weight)>0
+ ).map(([date,day])=>({date,weight:Number(day.weight),gap:Math.abs(C.daysBetween(current,date))}))
+ .filter(x=>x.gap<=30).sort((a,b)=>a.gap-b.gap).slice(0,2);
+ const flagged=neighbors.filter(x=>Math.abs(value-x.weight)>=5&&Math.abs(value-x.weight)/x.weight>=.10);
+ return flagged.length?{value,neighbors:flagged}:null;
+}
+function weightApproval(interactive=false){
+ const alert=weightAlert();
+ if(!alert)return true;
+ if(confirmedWeightByDay.get(current)===String(draft.weight))return true;
+ if(interactive&&declinedWeightByDay.get(current)===String(draft.weight))return false;
+ if(!interactive){
+  autoStatus('体重が前後の記録から大きく変化しています。確認待ち（下書き保護中）',true);
+  return false;
+ }
+ const comparisons=alert.neighbors.map(x=>`${x.date}：${x.weight} kg`).join('\\n');
+ if(confirm(`体重 ${alert.value} kg は近い日付の記録と大きく異なります。\\n${comparisons}\\n\\n入力値が正しい場合は「OK」で保存します。修正する場合は「キャンセル」を押してください。`)){
+  confirmedWeightByDay.set(current,String(draft.weight));declinedWeightByDay.delete(current);return true
+ }
+ declinedWeightByDay.set(current,String(draft.weight));autoStatus('体重の確認待ち：入力は下書きとして保護しています',true);
+ return false;
+}
 function validAutoDraft(){
- if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<1||Number(draft.weight)>500))return false;
+ if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<=0))return false;
  for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v))return false}
  if(draft.strengthWorkout)for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v))return false}
  if(draft.watchEnabled&&draft.watchTotalKcal!==''&&(!Number.isInteger(Number(draft.watchTotalKcal))||Number(draft.watchTotalKcal)<0))return false;
@@ -69,6 +100,7 @@ function autoCommit(){
  sync();
  if(!dayDirty()){clearJournal();autoStatus('保存済み');return true}
  if(!validAutoDraft()){autoStatus('下書きを保護中（数値を確認）');return false}
+ if(!weightApproval(false))return false;
  const next=C.clone(store);next.days[current]=C.clone(draft);
  try{if(!localStorage.getItem('chapi-training-before-autosave-v37'))localStorage.setItem('chapi-training-before-autosave-v37',JSON.stringify(store))}catch(e){autoStatus('事前バックアップを作れません。手動保存を利用してください',true);return false}
  if(!persist(next)){autoStatus('保存失敗：保存ボタンで再試行してください',true);return false}
@@ -79,8 +111,8 @@ function chooseDate(day){current=day;draft=C.normalizeDay(store.days[day]);saved
 function sync(){if(!draft)return;draft.weight=$('weight').value;draft.note=$('daynote').value;draft.restDay=$('restDay').checked;draft.watchEnabled=$('watchEnabled').checked;draft.watchMode=$('watchMode').value;draft.watchTotalKcal=$('watchTotalKcal').value;}
 function renderWatch(){const on=$('watchEnabled').checked,active=$('watchMode').value==='active';$('watchInputRow').classList.toggle('hidden',!on);$('watchKcalLabel').textContent=active?'アクティブ消費カロリー（kcal）':'1日の総消費カロリー（kcal）';$('watchHint').textContent=!on?'従来の推定消費を使用します。':active?'推定基礎代謝（BMR）＋アクティブ消費で概算します。記録済み運動は追加しません。プロフィール不足・空欄・0の場合は従来計算に戻ります（0は未計測として警告）。':'総消費をそのまま採用します。生活活動係数・運動消費は追加しません。空欄・0の場合は従来計算に戻ります（0は未計測として警告）。';}
 function dayDirty(){sync();return JSON.stringify(draft)!==savedDraft}
-function changeDate(day){if(day!==current&&dayDirty()){journalDraft();autoCommit()}if(!C.date(day)){notice('日付を確認してください');return false}if(day!==current&&dayDirty()&&!confirm('未保存の変更があります。保存せず日付を切り替えますか？')){$('recordDate').value=current;return false}if(day!==current)chooseDate(day);return true}
-function saveDay(){sync();if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<1||Number(draft.weight)>500)){notice('体重は1〜500 kgで入力してください');return false}for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('食事は0以上の数値で入力してください');return false}}if(draft.strengthWorkout){for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('筋トレ全体の時間・消費カロリーは0以上にしてください');return false}}}for(const sess of draft.sessions)for(const it of sess.items){for(const f of ['minutes','km','steps','kcal','rounds'])if(it[f]!==''&&it[f]!=null&&!C.nonnegative(it[f])){notice('運動の数値は0以上にしてください');return false}for(const st of it.roundEntries||[])for(const f of ['kg','rounds'])if(st[f]!==''&&st[f]!=null&&(!C.nonnegative(st[f])||(f==='rounds'&&!Number.isInteger(Number(st[f]))))){notice('サーキットの重量・周回数を確認してください');return false}for(const st of it.sets||[])for(const f of ['kg','reps','rir'])if(st[f]!==''&&st[f]!=null&&!C.nonnegative(st[f])){notice('セットの数値を確認してください');return false}}// Flag unusually large newly-entered food values without rewriting older records.
+function changeDate(day){if(day!==current&&dayDirty()&&weightAlert()&&!weightApproval(false)){journalDraft();notice('体重の急変を確認するか修正してから日付を切り替えてください');$('recordDate').value=current;return false}if(day!==current&&dayDirty()){journalDraft();autoCommit()}if(!C.date(day)){notice('日付を確認してください');return false}if(day!==current&&dayDirty()&&!confirm('未保存の変更があります。下書きは保持されますが、日付を切り替えますか？')){$('recordDate').value=current;return false}if(day!==current)chooseDate(day);return true}
+function saveDay(){sync();if(!weightApproval(true)){journalDraft();return false}if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<=0)){notice('体重は0より大きい数値を入力してください');return false}for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('食事は0以上の数値で入力してください');return false}}if(draft.strengthWorkout){for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('筋トレ全体の時間・消費カロリーは0以上にしてください');return false}}}for(const sess of draft.sessions)for(const it of sess.items){for(const f of ['minutes','km','steps','kcal','rounds'])if(it[f]!==''&&it[f]!=null&&!C.nonnegative(it[f])){notice('運動の数値は0以上にしてください');return false}for(const st of it.roundEntries||[])for(const f of ['kg','rounds'])if(st[f]!==''&&st[f]!=null&&(!C.nonnegative(st[f])||(f==='rounds'&&!Number.isInteger(Number(st[f]))))){notice('サーキットの重量・周回数を確認してください');return false}for(const st of it.sets||[])for(const f of ['kg','reps','rir'])if(st[f]!==''&&st[f]!=null&&!C.nonnegative(st[f])){notice('セットの数値を確認してください');return false}}// Flag unusually large newly-entered food values without rewriting older records.
 if(draft.watchEnabled&&draft.watchTotalKcal!==''&&(!Number.isInteger(Number(draft.watchTotalKcal))||Number(draft.watchTotalKcal)<0)){notice('ウォッチの消費カロリーは0以上の整数で入力してください');return false}
 const originalMeals=C.normalizeDay(store.days[current]).meals;
 const unusual=[];
@@ -564,7 +596,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('focusout',e=>{
  if(!draft||e.target.closest('#settings')||e.target.closest('#templateEditor'))return;
- if(e.target.matches('input,textarea,select')){journalDraft();autoCommit()}
+ if(e.target.matches('input,textarea,select')){journalDraft();if(e.target.id==='weight')weightApproval(true);autoCommit()}
 });
 document.addEventListener('click',e=>{
  if(!draft||e.target.closest('#settings')||e.target.closest('#templateEditor'))return;
