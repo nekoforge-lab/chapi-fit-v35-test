@@ -10,11 +10,11 @@ function persist(next=store){if(blocked){notice('元データ保護のため保�
 // Do not overwrite storage at startup: migration is committed only on an explicit save.
 function chooseDate(day){current=day;draft=C.normalizeDay(store.days[day]);savedDraft=JSON.stringify(draft);$('recordDate').value=day;$('weight').value=draft.weight??'';$('daynote').value=draft.note||'';$('restDay').checked=!!draft.restDay;$('watchEnabled').checked=!!draft.watchEnabled;$('watchMode').value=draft.watchMode==='active'?'active':'total';$('watchTotalKcal').value=draft.watchTotalKcal??'';renderWatch();renderExercises();renderStrengthTotal();renderFood();renderEnergy();renderWeek()}
 function sync(){if(!draft)return;draft.weight=$('weight').value;draft.note=$('daynote').value;draft.restDay=$('restDay').checked;draft.watchEnabled=$('watchEnabled').checked;draft.watchMode=$('watchMode').value;draft.watchTotalKcal=$('watchTotalKcal').value;}
-function renderWatch(){const on=$('watchEnabled').checked,active=$('watchMode').value==='active';$('watchInputRow').classList.toggle('hidden',!on);$('watchKcalLabel').textContent=active?'アクティブ消費カロリー（kcal）':'1日の総消費カロリー（kcal）';$('watchHint').textContent=!on?'従来の推定消費を使用します。':active?'推定基礎代謝（BMR）＋アクティブ消費で概算します。生活活動係数・記録済み運動は追加しません。プロフィール不足や空欄の場合は従来計算に戻ります。':'総消費をそのまま採用します。生活活動係数・運動消費は追加しません。空欄の場合は従来計算に戻ります。';}
+function renderWatch(){const on=$('watchEnabled').checked,active=$('watchMode').value==='active';$('watchInputRow').classList.toggle('hidden',!on);$('watchKcalLabel').textContent=active?'アクティブ消費カロリー（kcal）':'1日の総消費カロリー（kcal）';$('watchHint').textContent=!on?'従来の推定消費を使用します。':active?'推定基礎代謝（BMR）＋アクティブ消費で概算します。記録済み運動は追加しません。プロフィール不足・空欄・0の場合は従来計算に戻ります（0は未計測として警告）。':'総消費をそのまま採用します。生活活動係数・運動消費は追加しません。空欄・0の場合は従来計算に戻ります（0は未計測として警告）。';}
 function dayDirty(){sync();return JSON.stringify(draft)!==savedDraft}
 function changeDate(day){if(!C.date(day)){notice('日付を確認してください');return false}if(day!==current&&dayDirty()&&!confirm('未保存の変更があります。保存せず日付を切り替えますか？')){$('recordDate').value=current;return false}if(day!==current)chooseDate(day);return true}
 function saveDay(){sync();if(draft.weight!==''&&(!C.nonnegative(draft.weight)||Number(draft.weight)<1||Number(draft.weight)>500)){notice('体重は1〜500 kgで入力してください');return false}for(const [key] of C.meals)for(const f of ['kcal','p','f','c']){const v=draft.meals?.[key]?.[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('食事は0以上の数値で入力してください');return false}}if(draft.strengthWorkout){for(const f of ['minutes','kcal']){const v=draft.strengthWorkout[f];if(v!==''&&v!=null&&!C.nonnegative(v)){notice('筋トレ全体の時間・消費カロリーは0以上にしてください');return false}}}for(const sess of draft.sessions)for(const it of sess.items){for(const f of ['minutes','km','steps','kcal','rounds'])if(it[f]!==''&&it[f]!=null&&!C.nonnegative(it[f])){notice('運動の数値は0以上にしてください');return false}for(const st of it.sets||[])for(const f of ['kg','reps','rir'])if(st[f]!==''&&st[f]!=null&&!C.nonnegative(st[f])){notice('セットの数値を確認してください');return false}}// Flag unusually large newly-entered food values without rewriting older records.
-if(draft.watchEnabled&&draft.watchTotalKcal!==''&&(!Number.isInteger(Number(draft.watchTotalKcal))||Number(draft.watchTotalKcal)<=0)){notice('ウォッチの消費カロリーは1以上の整数で入力してください');return false}
+if(draft.watchEnabled&&draft.watchTotalKcal!==''&&(!Number.isInteger(Number(draft.watchTotalKcal))||Number(draft.watchTotalKcal)<0)){notice('ウォッチの消費カロリーは0以上の整数で入力してください');return false}
 const originalMeals=C.normalizeDay(store.days[current]).meals;
 const unusual=[];
 for(const [meal,name] of C.meals)for(const [field,unit,limit] of [['kcal','kcal',10000],['p','g',1000],['f','g',1000],['c','g',1000]]){
@@ -91,7 +91,7 @@ const energyBox=document.createElement('div');energyBox.className='energy-inputs
 function renderLegacy(){const box=$('legacyEnergy');box.classList.toggle('hidden',!C.numeric(draft.calories));if(!C.numeric(draft.calories))return;box.innerHTML='<h2>旧記録の活動カロリー</h2><p>'+esc(draft.calories)+' kcal <small>元の入力値を保持</small></p><p class="hint">運動以外の活動を含む可能性があるため、運動の合計へは自動加算しません。内容が確認できた運動だけを個別登録してください。</p>';const label=document.createElement('label');label.className='check';const ck=document.createElement('input');ck.type='checkbox';ck.checked=!!draft.legacyCaloriesResolved;ck.onchange=()=>{draft.legacyCaloriesResolved=ck.checked;renderEnergy()};label.append(ck,'内容を確認済み（元の値は残す）');box.append(label)}
 $('watchEnabled').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});$('watchTotalKcal').addEventListener('input',()=>{sync();renderEnergy()});$('watchMode').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});
 // The SVG is presentation-only: no stored data or balance calculation is changed.
-function drawIntakeGauge(root,total,food,exercise){
+function drawIntakeGauge(root,total,food,exercise,foodRecorded=true){
  let svg=root.querySelector('.energy-ring-svg');
  if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
  svg.replaceChildren();
@@ -116,23 +116,27 @@ function drawIntakeGauge(root,total,food,exercise){
   marker(toDeg(food%total),false);
  }
  const net=food-exercise;
- marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.min(net,total)%total),true);
+ // The white marker follows net intake; for surplus it follows the red endpoint.
+ // No food entry: no net intake can be calculated, so omit the marker.
+ if(foodRecorded)marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.max(0,net)%total),true);
 }
-function renderEnergy(){if(!draft)return;sync();const e=C.energy(store,current,draft),target=Number(store.foodTargets?.kcal)||2000;$('energyHeading').textContent='デイリーエネルギー';$('energyDate').textContent=current+(current===today()?' · 今日':'');$('totalEnergy').textContent=e.total===null?'—':round(e.total);$('energyBreakdown').textContent=e.watch?(e.watchMode==='active'?'推定基礎代謝＋ウォッチのアクティブ消費（運動の重複加算なし）':'スマートウォッチ入力の総消費を採用（運動消費の追加なし）'):e.base?`生活消費 ${round(e.base.life)} kcal ＋ 運動追加消費 ${round(e.exercise.net)} kcal${e.exercise.unresolved?'（確認済み分）':''}`:'プロフィール・生活活動・体重を設定すると表示します。';const cautions=[];if(!e.watch&&e.exercise.unresolved)cautions.push('運動の区分／時間が未確認のため総消費は未算出です。');if(!e.watch&&e.exercise.missing)cautions.push('運動カロリーの空欄は加算していません。');if(!draft.sessions.length)cautions.push('登録された運動の追加消費は0 kcalです（実際の運動量が0とは限りません）。');if(!e.food.complete)cautions.push('食事入力が未完了のため収支は暫定です。');if(e.legacy)cautions.push('旧活動カロリーは未確認・合計対象外です。');$('energyCaution').textContent=cautions.join(' ');$('intakeValue').textContent=e.food.count.kcal?round(e.food.total.kcal):'—';$('balanceValue').textContent=e.balance===null?'—':signed(e.balance);$('balanceValue').className=color(e.balance);
+function renderEnergy(){if(!draft)return;sync();const e=C.energy(store,current,draft),target=Number(store.foodTargets?.kcal)||2000;$('energyHeading').textContent='デイリーエネルギー';$('energyDate').textContent=current+(current===today()?' · 今日':'');$('totalEnergy').textContent=e.total===null?'—':round(e.total);$('energyBreakdown').textContent=e.watch?(e.watchMode==='active'?'推定基礎代謝＋ウォッチのアクティブ消費（運動の重複加算なし）':'スマートウォッチ入力の総消費を採用（運動消費の追加なし）'):e.base?`生活消費 ${round(e.base.life)} kcal ＋ 運動追加消費 ${round(e.exercise.net)} kcal${e.exercise.unresolved?'（確認済み分）':''}`:'プロフィール・生活活動・体重を設定すると表示します。';const cautions=[];if(!e.watch&&e.exercise.unresolved)cautions.push('運動の区分／時間が未確認のため総消費は未算出です。');if(!e.watch&&e.exercise.missing)cautions.push('運動カロリーの空欄は加算していません。');if(!draft.sessions.length)cautions.push('登録された運動の追加消費は0 kcalです（実際の運動量が0とは限りません）。');if(!e.food.complete)cautions.push('食事入力が未完了のため収支は暫定または未算出です。');if(draft.watchEnabled&&draft.watchTotalKcal!==''&&Number(draft.watchTotalKcal)===0)cautions.push('ウォッチ0 kcalは未計測として扱い、従来の推定消費に切り替えています。');if(e.watch&&e.exercise.net>0)cautions.push('運動記録のオレンジは参考表示です。ウォッチ計測値に重複加算していません。');if(e.legacy)cautions.push('旧活動カロリーは未確認・合計対象外です。');$('energyCaution').textContent=cautions.join(' ');$('intakeValue').textContent=e.food.count.kcal?round(e.food.total.kcal):'—';$('balanceValue').textContent=e.balance===null?'—':signed(e.balance);$('balanceValue').className=color(e.balance);
  const donut=$('energyDonut'),status=$('balanceStatus');
  // One full ring represents total daily expenditure. Food advances clockwise;
  // recorded additional exercise moves backward from food's endpoint.
- const valid=e.total!==null&&Number.isFinite(e.total)&&e.total>0&&e.food.count.kcal>0;
- const food=valid?Math.max(0,e.food.total.kcal):0;
- // Watch total already includes exercise: never subtract a second time.
- const exercise=valid&&!e.watch?Math.max(0,Number(e.exercise?.net)||0):0;
- drawIntakeGauge(donut,valid?e.total:null,food,exercise);
+ const valid=e.total!==null&&Number.isFinite(e.total)&&e.total>0;
+ const foodRecorded=e.food.count.kcal>0;
+ const food=foodRecorded?Math.max(0,e.food.total.kcal):0;
+ // Exercise is a visual record even when the watch supplies total expenditure.
+ // C.energy() alone decides whether to add it to total expenditure.
+ const exercise=Math.max(0,Number(e.exercise?.net)||0);
+ drawIntakeGauge(donut,valid?e.total:null,food,exercise,foodRecorded);
  const net=food-exercise;
  const isPlus=e.balance!==null&&e.balance>0;
- status.textContent=!valid?'未算出':net<0?'運動が摂取を超過':e.balance===0?'±0':isPlus?'摂取超過':'消費超過';
- donut.setAttribute('aria-label',valid?`摂取 ${round(food)} kcal、運動追加消費 ${round(exercise)} kcal、実質摂取 ${signed(net)} kcal、収支 ${signed(e.balance)} kcal`:'食事または総消費が未算出');
+ status.textContent=!valid?'未算出':!foodRecorded?'食事未登録':net<0?'運動が摂取を超過':e.balance===0?'±0':isPlus?'摂取超過':'消費超過';
+ donut.setAttribute('aria-label',valid?`摂取 ${foodRecorded?round(food)+' kcal':'未登録'}、運動記録 ${round(exercise)} kcal、収支 ${e.balance===null?'未算出':signed(e.balance)+' kcal'}${e.watch?'（ウォッチ計測に運動を二重加算しません）':''}`:'総消費が未算出');
  $('energyBmr').textContent=e.base?round(e.base.bmr):'—';
- $('energyExercise').textContent=e.base?round(e.exercise.net):'—';
+ $('energyExercise').textContent=e.base?round(e.exercise.net)+(e.watch?'（加算なし）':''):'—';
  $('energyActivity').textContent=e.base?round(Math.max(0,e.base.life-e.base.bmr)):'—';const adjusted=target+Math.round((e.watch?0:e.exercise.net)*.7);$('baseDailyTarget').textContent=round(target)+' kcal';$('dailyTarget').textContent=round(adjusted)+' kcal';$('dailyProgress').value=Math.min(100,e.food.total.kcal/adjusted*100);$('dailyRemaining').textContent=e.food.count.kcal?(e.food.total.kcal<=adjusted?'今日の目標まで残り '+round(adjusted-e.food.total.kcal):'今日の目標を '+round(e.food.total.kcal-adjusted)+' 超過')+' kcal':'食事を入力すると進捗を表示します。';renderMascot(e,adjusted);$('energyDetails').innerHTML=e.watch?'<p>'+(e.watchMode==='active'?'推定基礎代謝 '+round(e.base.bmr)+' kcal ＋ アクティブ消費 '+round(Number(draft.watchTotalKcal))+' kcal（概算・生活活動係数なし）':'スマートウォッチ総消費：'+round(e.total)+' kcal（入力値をそのまま採用）')+' / 運動の二重加算なし</p>':e.base?`<p>基礎代謝 ${round(e.base.bmr)} kcal / 日<br>生活活動係数 ×${e.base.activity}<br>参照体重 ${e.base.w.weight} kg（${e.base.w.date}）<br>年齢 ${e.base.age}歳<br>体重維持の推定値 ${e.total===null?'未算出':round(e.total)+' kcal / 日'}<br>減量参考値 ${round(e.base.life-Math.min(400,e.base.life*.15))} kcal / 日（生活消費から最大15%・400 kcalを差し引く概算）</p>`:'<p class="hint">成人プロフィールと過去または当日の体重記録が必要です。</p>';}
 function mascotAssessment(e,adjusted,rest=false){
  // 未入力と「食べなかった」は別。間食は任意で、朝昼夕の記録を待つ。
