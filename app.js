@@ -84,7 +84,7 @@ function drawIntakeGauge(root,total,food,exercise){
  const ns='http://www.w3.org/2000/svg',point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
  const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));svg.append(el);return el};
  const arc=(start,end,color,{orange=false}={})=>{if(end-start<0.001)return;const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}const [x1,y1]=point(orange?start+span:start,r),[x2,y2]=point(orange?start:start+span,r);add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} ${orange?0:1} ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w})};
- const marker=(deg,thick)=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);add('line',{x1,y1,x2,y2,stroke:thick?'#263d49':'#f5f9fb','stroke-width':thick?4:2,'stroke-linecap':'round'})};
+ const marker=(deg,thick)=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);if(thick)add('line',{x1,y1,x2,y2,stroke:'#526b78','stroke-opacity':0.55,'stroke-width':6,'stroke-linecap':'round'});add('line',{x1,y1,x2,y2,stroke:thick?'#ffffff':'#f5f9fb','stroke-width':thick?4:2,'stroke-linecap':'round'})};
  add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:'#e7eff2','stroke-width':29});
  if(!(total>0&&Number.isFinite(total)))return;
  const toDeg=value=>value/total*360;
