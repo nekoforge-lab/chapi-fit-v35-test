@@ -374,3 +374,6 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 @media(max-width:420px){.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}}
 \n.save-failed{color:#b92b2b;font-weight:700}\n
 .settings-entry{display:flex;flex-direction:column;align-items:center;gap:3px}.build-label{font-size:10px;color:#84929b;font-weight:400;line-height:1.2}
+
+/* v3.8.3: prevent narrow iPhone columns and vertical button text */
+.add-row{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.add-row label{min-width:0;width:100%;margin:0}.add-row select{width:100%;min-width:0}.add-row button{width:100%;white-space:normal;min-height:46px}.exercise .row{flex-wrap:wrap;justify-content:flex-start}.exercise .row h3{flex:1 1 130px}.exercise .row button{flex:0 0 auto}
