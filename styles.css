@@ -390,3 +390,5 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .circuit-add-row{display:flex;margin-top:12px}
 .circuit-add-row button{width:auto;flex:none;min-height:44px}
 @media(max-width:420px){.round-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:5px}.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}.round-entry button{padding:6px 7px;font-size:13px}.round-entry .check{font-size:13px}}
+
+.library-form{display:grid;gap:14px;margin-top:12px}.library-form label{display:grid;gap:6px}.library-form input,.library-form select,.library-form textarea{width:100%;box-sizing:border-box}.library-form .actions{margin-top:6px}
