@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.12';
+const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.13';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -298,25 +298,27 @@ function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
  const toDeg=value=>value/total*360;
  const blue=Math.min(food,total);
  arc(0,toDeg(blue),'#3299bc');
- if(food>total)arc(0,toDeg(Math.min(food-total,total)),'#e96b78');
+ // Show the *pre-exercise* surplus in red, then subtract exercise in orange.
+ // The red portion remaining after orange represents the final net surplus.
+ const grossSurplus=Math.max(0,food-total+exercise);
+ if(grossSurplus>0)arc(0,toDeg(Math.min(grossSurplus,total)),'#e96b78');
  if(exercise>0){
-  // Orange starts at the food endpoint and sweeps counterclockwise over blue, with the inner blue edge visible.
-  const lower=Math.max(0,food-exercise),upper=food;
+  // For surplus, the orange segment starts after the final red surplus.
+  // Otherwise it follows the food endpoint backwards over the blue arc.
+  const lower=food>total?Math.max(0,food-total):Math.max(0,food-exercise);
+  const upper=food>total?grossSurplus:food;
   if(upper-lower>=total)arc(0,360,'#ef9b43',{orange:true});
   else {let cursor=lower;while(cursor<upper-0.0001){const lap=Math.floor(cursor/total),boundary=(lap+1)*total,next=Math.min(upper,boundary);arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});cursor=next}}
-  // Once exercise exceeds intake, continue counterclockwise from twelve o'clock.
   const extra=Math.min(exercise-food,total/2);
   if(extra>0){const span=toDeg(extra),[x1,y1]=point(0,94.625),[x2,y2]=point(-span,94.625);add('path',{d:`M ${x1} ${y1} A 94.625 94.625 0 ${span>180?1:0} 0 ${x2} ${y2}`,fill:'none',stroke:'#ef9b43','stroke-width':21.75})}
   marker(toDeg(food%total),false);
  }
  const net=food-exercise;
- // The white marker follows net intake; for surplus it follows the red endpoint.
- // No food entry: no net intake can be calculated, so omit the marker.
  if(foodRecorded)marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.max(0,net)%total),true);
 
 }
 // Daily Energy view is UI-only. Never store this preference in day records.
-let energyView='target';
+let energyView='balance';
 function drawTargetGauge(root,goal,food,foodRecorded){
  let svg=root.querySelector('.energy-ring-svg');
  if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
