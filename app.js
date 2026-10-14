@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.14';
+const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.15';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -285,49 +285,33 @@ const energyBox=document.createElement('div');energyBox.className='energy-inputs
 function renderLegacy(){const box=$('legacyEnergy');box.classList.toggle('hidden',!C.numeric(draft.calories));if(!C.numeric(draft.calories))return;box.innerHTML='<h2>旧記録の活動カロリー</h2><p>'+esc(draft.calories)+' kcal <small>元の入力値を保持</small></p><p class="hint">運動以外の活動を含む可能性があるため、運動の合計へは自動加算しません。内容が確認できた運動だけを個別登録してください。</p>';const label=document.createElement('label');label.className='check';const ck=document.createElement('input');ck.type='checkbox';ck.checked=!!draft.legacyCaloriesResolved;ck.onchange=()=>{draft.legacyCaloriesResolved=ck.checked;renderEnergy()};label.append(ck,'内容を確認済み（元の値は残す）');box.append(label)}
 $('watchEnabled').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});$('watchTotalKcal').addEventListener('input',()=>{sync();renderEnergy()});$('watchMode').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});
 // The SVG is presentation-only: no stored data or balance calculation is changed.
-function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
+function drawIntakeGauge(root,total,food,exercise,foodRecorded=true){
  let svg=root.querySelector('.energy-ring-svg');
  if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
  svg.replaceChildren();
  const ns='http://www.w3.org/2000/svg';
- const point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
  const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));svg.append(el);return el};
- // Clockwise arcs, with 0 kcal at twelve o'clock. No second ring.
- const arc=(start,end,color,{orange=false}={})=>{
-  if(end-start<0.001)return;
-  const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;
-  if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}
-  const [x1,y1]=point(start,r),[x2,y2]=point(start+span,r);
-  add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w});
+ const r=91,w=29,point=deg=>{const a=(deg-90)*Math.PI/180;return [110+r*Math.cos(a),110+r*Math.sin(a)]};
+ const arc=(start,end,color)=>{
+  if(end-start<0.00001)return;
+  const span=end-start;
+  if(span>=359.99999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}
+  const [x1,y1]=point(start),[x2,y2]=point(end);
+  add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w,'stroke-linecap':'butt'});
  };
- const marker=deg=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);add('line',{x1,y1,x2,y2,stroke:'#526b78','stroke-opacity':0.55,'stroke-width':6,'stroke-linecap':'round'});add('line',{x1,y1,x2,y2,stroke:'#ffffff','stroke-width':4,'stroke-linecap':'round'})};
- add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:'#e7eff2','stroke-width':29});
- if(!(total>0&&Number.isFinite(total)))return;
- if(!foodRecorded)return;
- const toDeg=value=>value/total*360;
- const positiveFood=Math.max(0,food),positiveExercise=Math.max(0,exercise);
- // Blue fills up to total expenditure. Any intake above that wraps from twelve o'clock in red.
- arc(0,toDeg(Math.min(positiveFood,total)),'#3299bc');
- const grossSurplus=Math.max(0,positiveFood-total+positiveExercise);
- const finalSurplus=Math.max(0,positiveFood-total);
- if(finalSurplus>0)arc(0,toDeg(Math.min(finalSurplus,total)),'#e96b78');
- if(positiveExercise>0){
-  // For surplus: exercise is the trailing orange slice of the pre-exercise red arc.
-  // Its beginning is the final red endpoint; the orange itself never adds to the red.
-  // For no surplus: orange moves backward from the food endpoint over blue.
-  const start=positiveFood>total?finalSurplus:Math.max(0,positiveFood-positiveExercise);
-  const end=positiveFood>total?grossSurplus:positiveFood;
-  let cursor=start;
-  while(cursor<end-0.0001){
-   const lap=Math.floor(cursor/total),next=Math.min(end,(lap+1)*total);
-   arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});
-   cursor=next;
-  }
- }
- // Boundary between the remaining red surplus and the orange deduction.
- // Without a surplus, mark net intake instead (the end of the orange deduction).
- const boundary=positiveFood>total?finalSurplus:Math.max(0,positiveFood-positiveExercise);
- marker(toDeg(boundary%total));
+ add('circle',{cx:110,cy:110,r,fill:'none',stroke:'#e7eff2','stroke-width':w});
+ if(!(Number.isFinite(total)&&total>0&&foodRecorded))return;
+ // A single clockwise axis represents [0,total]. Every visible colored arc uses
+ // exactly the same centerline and width; exercise is a PART of intake, never extra.
+ const intake=Math.max(0,Number(food)||0),work=Math.max(0,Number(exercise)||0);
+ const excess=Math.min(total,Math.max(0,intake-total));
+ const orange=Math.min(total-excess,work,Math.max(0,intake-excess));
+ const blue=Math.min(total-excess-orange,Math.max(0,intake-excess-orange));
+ const unit=360/total;
+ // Surplus: red (net excess), orange (exercise deduction), blue (remaining intake).
+ // Deficit: blue (intake less exercise), orange (exercise deduction), grey (unused).
+ if(excess>0){arc(0,excess*unit,'#e96b78');arc(excess*unit,(excess+orange)*unit,'#ef9b43');arc((excess+orange)*unit,(excess+orange+blue)*unit,'#3299bc')}
+ else{arc(0,blue*unit,'#3299bc');arc(blue*unit,(blue+orange)*unit,'#ef9b43')}
 }
 // Daily Energy view is UI-only. Never store this preference in day records.
 let energyView='balance';
