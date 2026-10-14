@@ -11,7 +11,7 @@ function plusMonths(s,n){const d=date(s),day=d.getDate();d.setDate(1);d.setMonth
 function age(birth,on){const b=date(birth),d=date(on);if(!b||!d||b>d)return null;let a=d.getFullYear()-b.getFullYear();if(d.getMonth()<b.getMonth()||(d.getMonth()===b.getMonth()&&d.getDate()<b.getDate()))a--;return a<=120?a:null}
 const numeric=x=>x!==''&&x!==null&&x!==undefined&&Number.isFinite(Number(x));
 const nonnegative=x=>numeric(x)&&Number(x)>=0;
-const defaults={bench:['DBベンチプレス',16,3,'8〜12回'],row:['チェストサポートロー',12,3,'10〜12回'],press:['DBショルダープレス',10,2,'8〜12回'],lateral:['サイドレイズ',4,2,'12〜15回'],curl:['インクラインカール',8,3,'10〜12回'],skull:['スカルクラッシャー',8,2,'10〜12回'],squat:['DBスクワット',16,3,'10〜15回'],rdl:['DB RDL',18,3,'10〜12回'],shrug:['DBシュラッグ',18,2,'12〜15回'],calf:['カーフレイズ',0,3,'15〜25回'],forearm:['前腕サーキット',6,2,'2周']};
+const defaults={bench:['ダンベルベンチプレス',16,3,'8〜12回'],row:['チェストサポートロー',12,3,'10〜12回'],press:['ダンベルショルダープレス',10,2,'8〜12回'],lateral:['サイドレイズ',4,2,'12〜15回'],curl:['インクラインカール',8,3,'10〜12回'],skull:['スカルクラッシャー',8,2,'10〜12回'],squat:['ダンベルスクワット',16,3,'10〜15回'],rdl:['ダンベルルーマニアンデッドリフト',18,3,'10〜12回'],shrug:['ダンベルシュラッグ',18,2,'12〜15回'],calf:['カーフレイズ',0,3,'15〜25回'],forearm:['前腕サーキット',6,2,'2周']};
 const forearmNote='リストカール30秒 → リバースリストカール30秒 → スタンディング・リストカール30秒。各種目間休憩10秒。2周を基本とする。';
 const plans={mon:['bench','row','press','lateral','curl','skull'],thu:['squat','rdl','shrug','calf','forearm'],sat:['squat','bench','row','rdl','press','lateral','shrug','calf','curl','skull']};
 function item(id){const d=defaults[id];return {id,name:d[0],kind:'strength',kg:d[1],sets:d[2],target:d[3],...(id==='forearm'?{tracking:'rounds',rounds:2,annotation:forearmNote}:id==='calf'?{strengthType:'bodyweight'}:{})}}
@@ -40,6 +40,11 @@ function migrate(raw){validateStore(raw);const s=clone(raw);if((s.schemaRevision
  if(!s.templates.some(t=>t.id==='cf-bodyweight-circuit-v37'))s.templates.push(extraTemplates().find(t=>t.id==='cf-bodyweight-circuit-v37'));
  // Rename only built-in default names, not customized titles or historical sessions.
  for(const t of s.templates){const names={mon:['上半身のみ','ダンベル上半身トレーニング'],thu:['下半身のみ','ダンベル下半身トレーニング'],sat:['全身','ダンベル全身トレーニング']};const pair=names[t.id];if(pair&&t.name===pair[0])t.name=pair[1]}
+ // Display-name upgrades apply only to exact untouched built-in item labels; day history stays immutable.
+ const builtInNames={'DBベンチプレス':'ダンベルベンチプレス','DBショルダープレス':'ダンベルショルダープレス','DBスクワット':'ダンベルスクワット','DB RDL':'ダンベルルーマニアンデッドリフト','DBシュラッグ':'ダンベルシュラッグ'};
+ for(const t of s.templates)for(const i of t.items)if(Object.prototype.hasOwnProperty.call(builtInNames,i.name)&&['bench','press','squat','rdl','shrug'].includes(i.id))i.name=builtInNames[i.name];
+ // Add a basic abdominal exercise once; do not touch existing workouts or preset IDs.
+ if(!s.templates.some(t=>t.id==='cf-situp-v38'))s.templates.push({id:'cf-situp-v38',name:'上体起こし',items:[{id:'situp-v38',name:'上体起こし',kind:'strength',strengthType:'bodyweight',sets:3,target:'10〜15回'}]});
  s.goalHistory=s.goalHistory||[];return s}
 // v3.8 stage 1: read-only identity audit. Never infer identity from names alone.
 function auditExerciseIds(s){
