@@ -381,3 +381,12 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 /* v3.8 06: circuit add/remove controls are vertically stacked, not side-by-side. */
 .circuit-round-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 .circuit-round-actions button{flex:none;width:100%;min-height:44px}
+
+/* v3.8.6: restore original forearm circuit row editor */
+.round-entry,.round-entry.bodyweight-round{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:7px;align-items:end;max-width:none}
+.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}
+.round-entry .check{align-self:end;min-height:44px;display:flex;align-items:center;gap:5px}
+.round-entry button{align-self:end;min-height:44px;padding:7px 9px;flex:none}
+.circuit-add-row{display:flex;margin-top:12px}
+.circuit-add-row button{width:auto;flex:none;min-height:44px}
+@media(max-width:420px){.round-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:5px}.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}.round-entry button{padding:6px 7px;font-size:13px}.round-entry .check{font-size:13px}}
