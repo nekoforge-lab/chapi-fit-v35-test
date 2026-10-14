@@ -1,4 +1,4 @@
-const CACHE='chapi-fit-shell-v3813-energy-layout';
+const CACHE='chapi-fit-shell-v3814-energy-gauge';
 const SHELL=['./','./index.html','./styles.css?v=3.8.13-energy-layout','./core.js?v=3.8.13-energy-layout','./workout-records.js?v=3.8.13-energy-layout','./app.js?v=3.8.13-energy-layout','./guide.js?v=3.5-finish-v1','./manifest.webmanifest','./apple-touch-icon.png?v=3.5-coach2','./favicon-32.png?v=3.5-coach2','./genkun-0.png?v=3.5-coach2-fullbody','./genkun-1.png?v=3.5-coach2-fullbody','./genkun-2.png?v=3.5-coach2-fullbody','./genkun-3.png?v=3.5-coach2-fullbody','./genkun-4.png?v=3.5-coach2-fullbody','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)))});
 // Activate after old tabs close: do not swap code underneath unsaved input.

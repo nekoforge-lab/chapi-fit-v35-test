@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.13';
+const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.14';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -289,33 +289,45 @@ function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
  let svg=root.querySelector('.energy-ring-svg');
  if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
  svg.replaceChildren();
- const ns='http://www.w3.org/2000/svg',point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
+ const ns='http://www.w3.org/2000/svg';
+ const point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
  const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));svg.append(el);return el};
- const arc=(start,end,color,{orange=false}={})=>{if(end-start<0.001)return;const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}const [x1,y1]=point(orange?start+span:start,r),[x2,y2]=point(orange?start:start+span,r);add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} ${orange?0:1} ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w})};
- const marker=(deg,thick)=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);if(thick)add('line',{x1,y1,x2,y2,stroke:'#526b78','stroke-opacity':0.55,'stroke-width':6,'stroke-linecap':'round'});add('line',{x1,y1,x2,y2,stroke:thick?'#ffffff':'#f5f9fb','stroke-width':thick?4:2,'stroke-linecap':'round'})};
+ // Clockwise arcs, with 0 kcal at twelve o'clock. No second ring.
+ const arc=(start,end,color,{orange=false}={})=>{
+  if(end-start<0.001)return;
+  const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;
+  if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}
+  const [x1,y1]=point(start,r),[x2,y2]=point(start+span,r);
+  add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w});
+ };
+ const marker=deg=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);add('line',{x1,y1,x2,y2,stroke:'#526b78','stroke-opacity':0.55,'stroke-width':6,'stroke-linecap':'round'});add('line',{x1,y1,x2,y2,stroke:'#ffffff','stroke-width':4,'stroke-linecap':'round'})};
  add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:'#e7eff2','stroke-width':29});
  if(!(total>0&&Number.isFinite(total)))return;
+ if(!foodRecorded)return;
  const toDeg=value=>value/total*360;
- const blue=Math.min(food,total);
- arc(0,toDeg(blue),'#3299bc');
- // Show the *pre-exercise* surplus in red, then subtract exercise in orange.
- // The red portion remaining after orange represents the final net surplus.
- const grossSurplus=Math.max(0,food-total+exercise);
- if(grossSurplus>0)arc(0,toDeg(Math.min(grossSurplus,total)),'#e96b78');
- if(exercise>0){
-  // For surplus, the orange segment starts after the final red surplus.
-  // Otherwise it follows the food endpoint backwards over the blue arc.
-  const lower=food>total?Math.max(0,food-total):Math.max(0,food-exercise);
-  const upper=food>total?grossSurplus:food;
-  if(upper-lower>=total)arc(0,360,'#ef9b43',{orange:true});
-  else {let cursor=lower;while(cursor<upper-0.0001){const lap=Math.floor(cursor/total),boundary=(lap+1)*total,next=Math.min(upper,boundary);arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});cursor=next}}
-  const extra=Math.min(exercise-food,total/2);
-  if(extra>0){const span=toDeg(extra),[x1,y1]=point(0,94.625),[x2,y2]=point(-span,94.625);add('path',{d:`M ${x1} ${y1} A 94.625 94.625 0 ${span>180?1:0} 0 ${x2} ${y2}`,fill:'none',stroke:'#ef9b43','stroke-width':21.75})}
-  marker(toDeg(food%total),false);
+ const positiveFood=Math.max(0,food),positiveExercise=Math.max(0,exercise);
+ // Blue fills up to total expenditure. Any intake above that wraps from twelve o'clock in red.
+ arc(0,toDeg(Math.min(positiveFood,total)),'#3299bc');
+ const grossSurplus=Math.max(0,positiveFood-total+positiveExercise);
+ const finalSurplus=Math.max(0,positiveFood-total);
+ if(finalSurplus>0)arc(0,toDeg(Math.min(finalSurplus,total)),'#e96b78');
+ if(positiveExercise>0){
+  // For surplus: exercise is the trailing orange slice of the pre-exercise red arc.
+  // Its beginning is the final red endpoint; the orange itself never adds to the red.
+  // For no surplus: orange moves backward from the food endpoint over blue.
+  const start=positiveFood>total?finalSurplus:Math.max(0,positiveFood-positiveExercise);
+  const end=positiveFood>total?grossSurplus:positiveFood;
+  let cursor=start;
+  while(cursor<end-0.0001){
+   const lap=Math.floor(cursor/total),next=Math.min(end,(lap+1)*total);
+   arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});
+   cursor=next;
+  }
  }
- const net=food-exercise;
- if(foodRecorded)marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.max(0,net)%total),true);
-
+ // Boundary between the remaining red surplus and the orange deduction.
+ // Without a surplus, mark net intake instead (the end of the orange deduction).
+ const boundary=positiveFood>total?finalSurplus:Math.max(0,positiveFood-positiveExercise);
+ marker(toDeg(boundary%total));
 }
 // Daily Energy view is UI-only. Never store this preference in day records.
 let energyView='balance';
