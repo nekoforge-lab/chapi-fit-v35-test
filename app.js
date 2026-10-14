@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.10';
+const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.11';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -313,7 +313,7 @@ function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
  // The white marker follows net intake; for surplus it follows the red endpoint.
  // No food entry: no net intake can be calculated, so omit the marker.
  if(foodRecorded)marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.max(0,net)%total),true);
- // Goal lane: only an outlined, transparent hatched band on the SAME ring.
+ // Goal lane: opaque high-contrast hatch on the SAME ring, no second ring.
  // One turn = expenditure. Travel counterclockwise from 12 o'clock to goal.
  if(Number.isFinite(goal)&&goal>=0&&goal<total){
   const span=(total-goal)/total*360;
@@ -326,9 +326,9 @@ function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
    :`M ${ox1} ${oy1} A ${outer} ${outer} 0 ${span>180?1:0} 1 ${ox2} ${oy2} L ${ix2} ${iy2} A ${inner} ${inner} 0 ${span>180?1:0} 0 ${ix1} ${iy1} Z`;
   const defs=document.createElementNS(ns,'defs');const pattern=document.createElementNS(ns,'pattern');
   for(const [k,v] of Object.entries({id:'daily-goal-hatch',patternUnits:'userSpaceOnUse',width:7,height:7,patternTransform:'rotate(45)'}))pattern.setAttribute(k,String(v));
-  const line=document.createElementNS(ns,'line');for(const [k,v] of Object.entries({x1:0,y1:0,x2:0,y2:7,stroke:'#087b83','stroke-width':2}))line.setAttribute(k,String(v));
-  pattern.append(line);defs.append(pattern);svg.append(defs);
-  const lane=add('path',{d,fill:'url(#daily-goal-hatch)','fill-rule':'evenodd',stroke:'#164d5b','stroke-width':2.3,'stroke-linejoin':'round'});
+  const line=document.createElementNS(ns,'line');for(const [k,v] of Object.entries({x1:0,y1:0,x2:0,y2:7,stroke:'#087b83','stroke-width':2.8}))line.setAttribute(k,String(v));
+  const bg=document.createElementNS(ns,'rect');for(const [k,v] of Object.entries({x:0,y:0,width:7,height:7,fill:'#f2fafa'}))bg.setAttribute(k,String(v));pattern.append(bg,line);defs.append(pattern);svg.append(defs);
+  const lane=add('path',{d,fill:'url(#daily-goal-hatch)','fill-rule':'evenodd',stroke:'#164d5b','stroke-width':3.2,'stroke-linejoin':'round'});
   lane.setAttribute('pointer-events','none');
  }
 }

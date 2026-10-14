@@ -393,7 +393,7 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 
 .library-form{display:grid;gap:14px;margin-top:12px}.library-form label{display:grid;gap:6px}.library-form input,.library-form select,.library-form textarea{width:100%;box-sizing:border-box}.library-form .actions{margin-top:6px}
 
-/* v3.8.10 Daily Energy: one original ring, four side metrics, outlined transparent goal lane. */
+/* v3.8.11 Daily Energy: one original ring, four side metrics, outlined transparent goal lane. */
 .energy-metric-stack{display:flex;flex-direction:column;justify-content:space-between;align-self:stretch;min-width:0;padding:8px 0;gap:10px}
 .energy-metric-stack .energy-metric-label{font-size:clamp(10px,2.8vw,13px);white-space:nowrap}
 .energy-metric-stack .energy-metric strong{font-size:clamp(14px,4vw,26px);letter-spacing:-.65px}
