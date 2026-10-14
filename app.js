@@ -9,21 +9,35 @@ try{rawOriginal=localStorage.getItem(KEY)||'';const old=localStorage.getItem(OLD
 function persist(next=store){if(blocked){notice('元データ保護のため保存を停止しています。先に書き出してください。');return false}try{localStorage.setItem(KEY,JSON.stringify(next));store=next;return true}catch(e){notice('保存できませんでした。入力は画面に残っています。空き容量を確認しバックアップしてください。');return false}}
 // Do not overwrite storage at startup: migration is committed only on an explicit save.
 // Stage 1 library: initialize in memory; persist only after an explicit user action.
+const BUILTIN_LIBRARY_NAMES={bench:['DBベンチプレス','ダンベルベンチプレス'],press:['DBショルダープレス','ダンベルショルダープレス'],squat:['DBスクワット','ダンベルスクワット'],rdl:['DB RDL','ダンベルルーマニアンデッドリフト'],shrug:['DBシュラッグ','ダンベルシュラッグ']};
 function libraryView(){
  const preview=C.previewExerciseLibrary(store);
  const existing=Array.isArray(store.exerciseLibrary)?store.exerciseLibrary:[];
- const byId=new Map(existing.map(x=>[x.id,x]));
+ const byId=new Map(existing.map(x=>[x.id,{...x}]));
  for(const x of preview.exercises)if(!byId.has(x.id))byId.set(x.id,x);
- return {items:[...byId.values()],audit:preview.audit};
+ for(const [id,names] of Object.entries(BUILTIN_LIBRARY_NAMES)){
+  const item=byId.get(id);
+  if(item&&item.name===names[0])item.name=names[1];
+ }
+ return {items:[...byId.values()].filter(x=>!isLegacyGenericCircuit(x)),audit:preview.audit};
 }
+function isLegacyGenericCircuit(x){return x?.name==='サーキットトレーニング'&&x?.kind==='strength'}
+function exerciseRegistrationOptions(){return [['sets','通常トレーニング'],['weighted-rounds','重量別サーキット'],['bodyweight-rounds','自重・加重・補助サーキット']];}
+function registrationType(x){return x.kind==='cardio'?'cardio':x.tracking==='rounds'?(x.strengthType==='bodyweight'?'bodyweight-rounds':'weighted-rounds'):'sets'}
+function exerciseConfig(x){const type=registrationType(x);return type==='weighted-rounds'?{tracking:'rounds',strengthType:'normal',rounds:2}:type==='bodyweight-rounds'?{tracking:'rounds',strengthType:'bodyweight',rounds:2}:{tracking:'sets',strengthType:x.strengthType||'normal',sets:3}}
 function archivedIds(data=store){const preview=C.previewExerciseLibrary(data);const existing=Array.isArray(data.exerciseLibrary)?data.exerciseLibrary:[];return new Set(existing.filter(x=>x.archived).map(x=>x.id))}
 function activeTemplateItems(t,kind=null,data=store){const hidden=archivedIds(data);return t.items.filter(i=>!hidden.has(i.id)&&(kind===null||(i.kind==='cardio')===(kind==='cardio')))}
 function librarySave(mutator){const next=C.clone(store);const view=libraryView();next.exerciseLibrary=C.clone(view.items);mutator(next.exerciseLibrary,next);return persist(next)}
 function addLibraryExercise(){
  const name=prompt('新しい種目名を入力してください');if(name===null)return;
  if(!name.trim()){notice('種目名を入力してください');return}
- const kind=confirm('筋トレとして登録しますか？\nOK：筋トレ ／ キャンセル：有酸素')?'strength':'cardio';
- const id=uid();if(librarySave(items=>items.push({id,name:name.trim(),kind,archived:false}))){renderLibrary();notice('種目を登録しました')}
+ const options=[...exerciseRegistrationOptions(),['cardio','有酸素運動']];
+ const answer=prompt('登録する記録方式を番号で選択してください。\n'+options.map(([v,label],i)=>`${i+1}. ${label}`).join('\n')+'\n\n番号（1〜4）');
+ if(answer===null)return;
+ const n=Number(answer);if(!Number.isInteger(n)||n<1||n>options.length){notice('記録方式の番号を確認してください');return}
+ const type=options[n-1][0],kind=type==='cardio'?'cardio':'strength';
+ const config=type==='weighted-rounds'?{tracking:'rounds',strengthType:'normal',rounds:2}:type==='bodyweight-rounds'?{tracking:'rounds',strengthType:'bodyweight',rounds:2}:type==='sets'?{tracking:'sets',strengthType:'normal',sets:3}:{};
+ const id=uid();if(librarySave(items=>items.push({id,name:name.trim(),kind,...config,archived:false}))){renderLibrary();refreshPickers();notice('種目を登録しました。記録画面から単体で追加できます')}
 }
 function renderLibrary(){
  const root=$('exerciseLibraryList');if(!root)return;root.innerHTML='';const view=libraryView();
@@ -31,7 +45,7 @@ function renderLibrary(){
  const archived=$('showArchivedExercises').checked;
  for(const x of view.items.filter(x=>!!x.archived===archived)){
   const line=document.createElement('div');line.className='template-card';
-  const heading=document.createElement('h3');heading.textContent=x.name;const meta=document.createElement('p');meta.className='hint';meta.textContent=(x.kind==='cardio'?'有酸素運動':'筋トレ')+' · ID: '+x.id;
+  const heading=document.createElement('h3');heading.textContent=x.name;const meta=document.createElement('p');meta.className='hint';meta.textContent=(x.kind==='cardio'?'有酸素運動':exerciseRegistrationOptions().find(([v])=>v===registrationType(x))?.[1]||'筋トレ')+' · ID: '+x.id;
   const actions=document.createElement('div');actions.className='actions';
   if(!archived)actions.append(button('名称修正',()=>{const name=prompt('同じ運動の名称修正のみ行えます。別の運動なら新規登録してください。',x.name);if(name===null)return;if(!name.trim()){notice('名前を入力してください');return}if(librarySave((items,next)=>{const item=items.find(i=>i.id===x.id);item.name=name.trim();for(const t of next.templates)for(const it of t.items)if(it.id===x.id)it.name=name.trim()})){renderLibrary();renderTemplates();refreshPickers();notice('ライブラリとプリセットの名称を更新しました。過去の記録名は保持されます')}}));
   actions.append(button(archived?'復元':'アーカイブ',()=>{if(!archived){const used=store.templates.filter(t=>t.items.some(i=>i.id===x.id));const message=used.length?`この種目は${used.length}件のプリセットで使用されています。\nアーカイブすると通常のメニューから一時的に非表示になります。復元すれば元に戻ります。\n過去の履歴は残ります。`: '種目を一覧から隠しますか？過去の履歴とプリセットは保持されます。';if(!confirm(message))return;}if(librarySave(items=>{items.find(i=>i.id===x.id).archived=!archived})){renderLibrary();renderTemplates();refreshPickers();notice(archived?'種目を復元しました':'種目をアーカイブしました')}},archived?'':'danger'));
@@ -45,7 +59,7 @@ function pickLibraryExercise(index){
  const choices=items.map((x,i)=>`${i+1}. ${x.name}`).join('\n');
  const answer=prompt('使用する種目の番号を入力してください。\n'+choices);if(answer===null)return;
  const n=Number(answer);if(!Number.isInteger(n)||n<1||n>items.length){notice('番号を確認してください');return}
- const chosen=items[n-1];if(editing.items.some((item,i)=>i!==index&&item.id===chosen.id)){notice('この種目はプリセット内にすでに登録されています');return}editing.items[index].id=chosen.id;editing.items[index].name=chosen.name;renderEditor();
+ const chosen=items[n-1];if(editing.items.some((item,i)=>i!==index&&item.id===chosen.id)){notice('この種目はプリセット内にすでに登録されています');return}editing.items[index]={...editing.items[index],...exerciseConfig(chosen),id:chosen.id,name:chosen.name,kind:chosen.kind,annotation:chosen.annotation||''};renderEditor();
 }
 const DRAFT_KEY='chapi-training-v37-autosave-draft';
 let autoState='saved',journalError=false;
@@ -213,8 +227,8 @@ function exerciseCategory(x){if(x.kind==='cardio')return '有酸素運動';const
 function refreshPickers(){const category=$('exerciseCategory'),picker=$('exercisePicker');if(!category||!picker)return;const old=category.value;category.replaceChildren();for(const name of EXERCISE_CATEGORIES)category.add(new Option(name,name));category.value=EXERCISE_CATEGORIES.includes(old)?old:'プリセット';refreshExerciseOptions()}
 const BUILTIN_DISPLAY_NAMES={'bench':'ダンベルベンチプレス','press':'ダンベルショルダープレス','squat':'ダンベルスクワット','rdl':'ダンベルルーマニアンデッドリフト','shrug':'ダンベルシュラッグ'};
 function displayExerciseName(item){const canonical=BUILTIN_DISPLAY_NAMES[item.id];return canonical&&(/^(DB|ダンベル)/.test(item.name||''))?canonical:item.name}
-function refreshExerciseOptions(){const category=$('exerciseCategory').value,picker=$('exercisePicker');picker.replaceChildren();if(category==='プリセット'){for(const t of store.templates){const items=activeTemplateItems(t);if(items.length>1)picker.add(new Option(t.name+'（'+items.length+'種目）','template:'+t.id))}}else{const seen=new Set();for(const item of libraryView().items){if(item.archived||item.kind==='cardio'&&item.name==='有酸素運動'||exerciseCategory(item)!==category||seen.has(item.id))continue;seen.add(item.id);picker.add(new Option(displayExerciseName(item),'item:'+item.id))}}$('addExercise').disabled=!picker.options.length}
-function addSelectedExercise(){const value=$('exercisePicker').value;if(!value)return;if(value.startsWith('template:')){const t=store.templates.find(t=>t.id===value.slice(9));if(t)addItemsToDay(t,activeTemplateItems(t));return}const id=value.slice(5);const library=libraryView().items.find(i=>i.id===id);if(!library)return;const source=store.templates.flatMap(t=>t.items).find(i=>i.id===id);const item=source?C.clone(source):{...C.clone(library),...(library.kind==='cardio'?{}:{sets:3,strengthType:'normal',tracking:'sets'})};addItemsToDay({id:null,name:'個別追加'},[item])}
+function refreshExerciseOptions(){const category=$('exerciseCategory').value,picker=$('exercisePicker');picker.replaceChildren();if(category==='プリセット'){for(const t of store.templates){const items=activeTemplateItems(t);if(items.length>1)picker.add(new Option(t.name+'（'+items.length+'種目）','template:'+t.id))}}else{const seen=new Set();for(const item of libraryView().items){if(item.archived||isLegacyGenericCircuit(item)||item.kind==='cardio'&&item.name==='有酸素運動'||exerciseCategory(item)!==category||seen.has(item.id))continue;seen.add(item.id);picker.add(new Option(displayExerciseName(item),'item:'+item.id))}}$('addExercise').disabled=!picker.options.length}
+function addSelectedExercise(){const value=$('exercisePicker').value;if(!value)return;if(value.startsWith('template:')){const t=store.templates.find(t=>t.id===value.slice(9));if(t)addItemsToDay(t,activeTemplateItems(t));return}const id=value.slice(5);const library=libraryView().items.find(i=>i.id===id);if(!library)return;const source=store.templates.flatMap(t=>t.items).find(i=>i.id===id);const item=source?{...C.clone(source),...(library.tracking==='rounds'?exerciseConfig(library):{})}:{...C.clone(library),...(library.kind==='cardio'?{}:exerciseConfig(library))};addItemsToDay({id:null,name:'個別追加'},[item])}
 function addItemsToDay(source,itemsInput){sync();const t=source;const items=itemsInput.map(i=>{const out={...C.clone(i),...(i.id==='bodyweight-circuit-v37'?{tracking:'rounds',strengthType:'bodyweight'}:{}),note:'',...(i.kind==='cardio'?{minutes:'',kcal:'',energyType:'unknown'}:{})};if(i.kind==='cardio'){out.km='';out.steps='';delete out.sets}else if(i.tracking==='rounds'){out.rounds='';out.done=false;out.roundEntries=[{kg:'',rounds:'',done:false}];delete out.sets}else{const prev=C.previous(store,i.id,current),weights=(prev?.item.sets||[]).filter(s=>s.done);out.sets=Array.from({length:Math.max(1,Math.min(30,Number(i.sets)||3))},(_,n)=>({kg:i.strengthType==='bodyweight'?'':(weights[n]?.kg??weights.at(-1)?.kg??''),reps:'',rir:'',done:false,loadMode:i.strengthType==='bodyweight'?'normal':undefined}))}return out});const orders=draft.sessions.flatMap(x=>x.items).map(x=>x.displayOrder).filter(Number.isFinite);const start=orders.length?Math.max(...orders)+1:draft.sessions.flatMap(x=>x.items).length;items.forEach((item,i)=>item.displayOrder=start+i);draft.sessions.push({id:uid(),name:t.name,templateId:t.id||null,items});renderExercises();renderEnergy()}
 function renderStrengthTotal(){const w=draft.strengthWorkout||{};$('strengthTotalMinutes').value=w.minutes??'';$('strengthTotalKcal').value=w.kcal??'';$('strengthTotalType').value=w.energyType||'unknown'}
 function updateStrengthTotal(field,value){if(!draft.strengthWorkout)draft.strengthWorkout={minutes:'',kcal:'',energyType:'unknown'};draft.strengthWorkout[field]=value;renderEnergy()}
