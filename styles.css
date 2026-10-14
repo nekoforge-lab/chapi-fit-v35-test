@@ -392,3 +392,10 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 @media(max-width:420px){.round-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;gap:5px}.round-entry.bodyweight-round{grid-template-columns:minmax(0,1fr) auto auto}.round-entry button{padding:6px 7px;font-size:13px}.round-entry .check{font-size:13px}}
 
 .library-form{display:grid;gap:14px;margin-top:12px}.library-form label{display:grid;gap:6px}.library-form input,.library-form select,.library-form textarea{width:100%;box-sizing:border-box}.library-form .actions{margin-top:6px}
+
+/* v3.8.10 Daily Energy: one original ring, four side metrics, outlined transparent goal lane. */
+.energy-metric-stack{display:flex;flex-direction:column;justify-content:space-between;align-self:stretch;min-width:0;padding:8px 0;gap:10px}
+.energy-metric-stack .energy-metric-label{font-size:clamp(10px,2.8vw,13px);white-space:nowrap}
+.energy-metric-stack .energy-metric strong{font-size:clamp(14px,4vw,26px);letter-spacing:-.65px}
+.energy-exercise{color:#28866d}.energy-goal{color:#087b83}
+@media(max-width:390px){.energy-dashboard{grid-template-columns:minmax(0,1fr) minmax(130px,1.6fr) minmax(0,1fr)}.energy-metric-stack .energy-metric strong{font-size:clamp(13px,3.6vw,17px)}}
