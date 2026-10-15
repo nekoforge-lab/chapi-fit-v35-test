@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.16';
+const W=ChapiWorkoutRecords,C=ChapiCore,KEY='chapi-training-v2',OLDKEY='chapi-training-v1',BACKUP='chapi-training-v2-before-v3',RESTORE='chapi-training-before-restore',VERSION='3.8.17';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2),today=()=>C.iso(new Date()),round=(n,d=0)=>Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d}),signed=n=>(n>0?'+':n===0?'±':'')+round(n),color=n=>n===null?'':n<0?'negative':n>0?'positive':'neutral';
 let store,blocked=false,recoveryExported=false,externalConflict=false,rawOriginal='',current=today(),draft,savedDraft='',activeTab='record',month=current.slice(0,7)+'-01',selectedDetail=current,editing=null,targetsDraft=null,goalDraft=null,graphMode='weight',graphWeek=current,noticeTimer,settingsDirty=false,loadedToday=today();
 const dirtySections=new Set();function markDirty(section){dirtySections.add(section);settingsDirty=true}function cleanSection(section){dirtySections.delete(section);settingsDirty=dirtySections.size>0}
@@ -285,59 +285,41 @@ const energyBox=document.createElement('div');energyBox.className='energy-inputs
 function renderLegacy(){const box=$('legacyEnergy');box.classList.toggle('hidden',!C.numeric(draft.calories));if(!C.numeric(draft.calories))return;box.innerHTML='<h2>旧記録の活動カロリー</h2><p>'+esc(draft.calories)+' kcal <small>元の入力値を保持</small></p><p class="hint">運動以外の活動を含む可能性があるため、運動の合計へは自動加算しません。内容が確認できた運動だけを個別登録してください。</p>';const label=document.createElement('label');label.className='check';const ck=document.createElement('input');ck.type='checkbox';ck.checked=!!draft.legacyCaloriesResolved;ck.onchange=()=>{draft.legacyCaloriesResolved=ck.checked;renderEnergy()};label.append(ck,'内容を確認済み（元の値は残す）');box.append(label)}
 $('watchEnabled').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});$('watchTotalKcal').addEventListener('input',()=>{sync();renderEnergy()});$('watchMode').addEventListener('change',()=>{sync();renderWatch();renderEnergy()});
 // The SVG is presentation-only: no stored data or balance calculation is changed.
-function drawIntakeGauge(root,total,food,exercise,foodRecorded=true){
+function drawIntakeGauge(root,total,food,exercise,foodRecorded=true,goal=null){
  let svg=root.querySelector('.energy-ring-svg');
  if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
  svg.replaceChildren();
- const ns='http://www.w3.org/2000/svg',r=91,w=29;
+ const ns='http://www.w3.org/2000/svg',point=(deg,r)=>{const rad=(deg-90)*Math.PI/180;return [110+r*Math.cos(rad),110+r*Math.sin(rad)]};
  const add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));svg.append(el);return el};
- const point=(deg,rad=r)=>{const a=(deg-90)*Math.PI/180;return [110+rad*Math.cos(a),110+rad*Math.sin(a)]};
- const arc=(start,end,color)=>{
-  const span=end-start;if(span<0.00001)return;
-  if(span>=359.99999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}
-  const [x1,y1]=point(start),[x2,y2]=point(end);
-  add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} 1 ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w,'stroke-linecap':'butt'});
- };
- // A separator is placed on the ACTUAL junction of two colored arcs,
- // not at the modulo food or balance angle calculated independently.
- const separator=deg=>{
-  const [x1,y1]=point(deg,r-w/2),[x2,y2]=point(deg,r+w/2);
-  add('line',{x1,y1,x2,y2,stroke:'#fff','stroke-width':2.5,'stroke-linecap':'butt','data-energy-separator':'true'});
- };
- add('circle',{cx:110,cy:110,r,fill:'none',stroke:'#e7eff2','stroke-width':w});
- if(!(Number.isFinite(total)&&total>0&&foodRecorded))return;
- const intake=Math.max(0,Number(food)||0),work=Math.max(0,Number(exercise)||0);
- // The ring is a fixed 360-degree expenditure scale. Exercise occupies
- // part of that scale; it NEVER expands the total or adds to food.
- const excess=Math.min(total,Math.max(0,intake-total));
- const orange=Math.min(total-excess,work,Math.max(0,intake-excess));
- const blue=Math.min(total-excess-orange,Math.max(0,intake-excess-orange));
- const unit=360/total,segments=[];
- if(excess>0){segments.push([excess,'#e96b78']);if(orange>0)segments.push([orange,'#ef9b43']);if(blue>0)segments.push([blue,'#3299bc'])}
- else{if(blue>0)segments.push([blue,'#3299bc']);if(orange>0)segments.push([orange,'#ef9b43'])}
- let angle=0;
- segments.forEach(([value,color],i)=>{const next=angle+value*unit;arc(angle,next,color);angle=next});
- // White dividers are presentation-only and drawn LAST, above the arcs.
- angle=0;
- for(let i=0;i<segments.length-1;i++){angle+=segments[i][0]*unit;separator(angle)}
+ const arc=(start,end,color,{orange=false}={})=>{if(end-start<0.001)return;const span=Math.min(360,end-start),r=orange?94.625:91,w=orange?21.75:29;if(span>=359.999){add('circle',{cx:110,cy:110,r,fill:'none',stroke:color,'stroke-width':w});return}const [x1,y1]=point(orange?start+span:start,r),[x2,y2]=point(orange?start:start+span,r);add('path',{d:`M ${x1} ${y1} A ${r} ${r} 0 ${span>180?1:0} ${orange?0:1} ${x2} ${y2}`,fill:'none',stroke:color,'stroke-width':w})};
+ const marker=(deg,thick)=>{const [x1,y1]=point(deg,75),[x2,y2]=point(deg,107);if(thick)add('line',{x1,y1,x2,y2,stroke:'#526b78','stroke-opacity':0.55,'stroke-width':6,'stroke-linecap':'round'});add('line',{x1,y1,x2,y2,stroke:thick?'#ffffff':'#f5f9fb','stroke-width':thick?4:2,'stroke-linecap':'round'})};
+ add('circle',{cx:110,cy:110,r:91,fill:'none',stroke:'#e7eff2','stroke-width':29});
+ if(!(total>0&&Number.isFinite(total)))return;
+ const toDeg=value=>value/total*360;
+ const blue=Math.min(food,total);
+ arc(0,toDeg(blue),'#3299bc');
+ if(food>total)arc(0,toDeg(Math.min(food-total,total)),'#e96b78');
+ if(exercise>0){
+  // Orange starts at the food endpoint and sweeps counterclockwise over blue, with the inner blue edge visible.
+  const lower=Math.max(0,food-exercise),upper=food;
+  if(upper-lower>=total)arc(0,360,'#ef9b43',{orange:true});
+  else {let cursor=lower;while(cursor<upper-0.0001){const lap=Math.floor(cursor/total),boundary=(lap+1)*total,next=Math.min(upper,boundary);arc(toDeg(cursor-lap*total),toDeg(next-lap*total),'#ef9b43',{orange:true});cursor=next}}
+  // Once exercise exceeds intake, continue counterclockwise from twelve o'clock.
+  const extra=Math.min(exercise-food,total/2);
+  if(extra>0){const span=toDeg(extra),[x1,y1]=point(0,94.625),[x2,y2]=point(-span,94.625);add('path',{d:`M ${x1} ${y1} A 94.625 94.625 0 ${span>180?1:0} 0 ${x2} ${y2}`,fill:'none',stroke:'#ef9b43','stroke-width':21.75})}
+  marker(toDeg(food%total),false);
+ }
+ const net=food-exercise;
+ // The white marker follows net intake; for surplus it follows the red endpoint.
+ // No food entry: no net intake can be calculated, so omit the marker.
+ if(foodRecorded)marker(net<0?-toDeg(Math.min(-net,total/2)):toDeg(Math.max(0,net)%total),true);
+
 }
 // Daily Energy view is UI-only. Never store this preference in day records.
 let energyView='balance';
-function drawTargetGauge(root,goal,food,foodRecorded){
- let svg=root.querySelector('.energy-ring-svg');
- if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 220 220');svg.setAttribute('aria-hidden','true');svg.classList.add('energy-ring-svg');root.prepend(svg)}
- svg.replaceChildren();
- const ns='http://www.w3.org/2000/svg',add=(tag,attrs)=>{const el=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,String(v)));svg.append(el);return el};
- const r=91,circ=2*Math.PI*r;
- add('circle',{cx:110,cy:110,r,fill:'none',stroke:'#e7eff2','stroke-width':29});
- if(!(Number.isFinite(goal)&&goal>0&&foodRecorded))return;
- const amount=Math.max(0,food),portion=Math.min(1,amount/goal);
- if(portion>0)add('circle',{cx:110,cy:110,r,fill:'none',stroke:'#3299bc','stroke-width':29,'stroke-dasharray':`${circ*portion} ${circ}` ,transform:'rotate(-90 110 110)'});
- if(amount>goal){
-  // Surplus is a red arc from twelve o'clock; one complete extra goal saturates the ring.
-  const excess=Math.min(1,(amount-goal)/goal);
-  if(excess>0)add('circle',{cx:110,cy:110,r,fill:'none',stroke:'#e96b78','stroke-width':29,'stroke-dasharray':`${circ*excess} ${circ}`,transform:'rotate(-90 110 110)'});
- }
+function drawTargetGauge(root,goal,food,exercise,foodRecorded){
+ // Shared geometry with expenditure mode; only the reference denominator differs.
+ drawIntakeGauge(root,goal,food,exercise,foodRecorded);
 }
 $('energyDonut').addEventListener('click',()=>{energyView=energyView==='target'?'balance':'target';renderEnergy()});
 $('energyDonut').addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();energyView=energyView==='target'?'balance':'target';renderEnergy()}});
@@ -355,7 +337,7 @@ function renderEnergy(){if(!draft)return;sync();const e=C.energy(store,current,d
  // Watch already includes exercise. Its measured activity is the visual ceiling.
  const watchCeiling=e.watch?(e.watchMode==='active'?Number(draft.watchTotalKcal):Math.max(0,Number(e.total)-(e.base?.bmr||0))):Infinity;
  const exercise=e.watch?0:Math.min(recordedExercise,Math.max(0,watchCeiling));
- if(energyView==='target')drawTargetGauge(donut,adjustedGoal,food,foodRecorded);
+ if(energyView==='target')drawTargetGauge(donut,adjustedGoal,food,e.watch?0:exercise,foodRecorded);
  else drawIntakeGauge(donut,valid?e.total:null,food,e.watch?0:exercise,foodRecorded);
  $('energySwitchHint').textContent=energyView==='target'?'グラフをタップで消費収支に切り替え':'グラフをタップで食事目標に切り替え';
  $('energyLegendBalance').classList.toggle('hidden',energyView!=='balance');
