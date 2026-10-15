@@ -9,7 +9,9 @@ function render(mode,base,food,exercise){
 for(const mode of ['balance','target'])for(const [base,food,exercise] of [[2789,1880,336],[2789,2880,336],[2789,3880,336],[2100,1880,336],[2100,2880,336],[2100,3880,336],[2100,1880,0]]){
  const nodes=render(mode,base,food,exercise);
  const orange=nodes.filter(x=>x.attrs.stroke==='#ef9b43');
- assert.equal(orange.length,exercise>0?1:0,`${mode}: exercise must appear`);
+ const lower=Math.max(0,food-exercise),upper=food;
+ const expectedOrange=exercise>0?(Math.floor((upper-0.0001)/base)-Math.floor(lower/base)+1):0;
+ assert.equal(orange.length,expectedOrange,`${mode}: exercise overlay must preserve wrap segments`);
  for(const x of orange){assert.equal(x.attrs['stroke-width'],'21.75');assert.ok(x.attrs.d.includes('94.625'))}
  const blue=nodes.filter(x=>x.attrs.stroke==='#3299bc');
  for(const x of blue)assert.equal(x.attrs['stroke-width'],'29');
