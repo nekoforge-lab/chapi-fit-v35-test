@@ -1,9 +1,9 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const a=fs.readFileSync('app.js','utf8'),h=fs.readFileSync('index.html','utf8'),c=fs.readFileSync('styles.css','utf8'),sw=fs.readFileSync('sw.js','utf8');
-assert.match(a,/VERSION='3\.8\.18'/);
-assert.match(h,/v3\.8 開発版⑱/);
-assert.match(sw,/v3818-target-center/);
-assert.match(h,/v=3\.8\.18-target-center/);
+assert.match(a,/VERSION='3\.8\.19'/);
+assert.match(h,/v3\.8 開発版⑲/);
+assert.match(sw,/v3819-baseline-exercise/);
+assert.match(h,/v=3\.8\.19-baseline-exercise/);
 assert.match(a,/let energyView='balance'/);
 assert.match(h,/グラフをタップで食事目標に切り替え/);
 assert.match(a,/r=orange\?94\.625:91,w=orange\?21\.75:29/);
