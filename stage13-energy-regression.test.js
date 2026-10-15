@@ -1,8 +1,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const a=fs.readFileSync('app.js','utf8'),h=fs.readFileSync('index.html','utf8'),c=fs.readFileSync('styles.css','utf8'),sw=fs.readFileSync('sw.js','utf8');
 assert.match(a,/VERSION='3\.8\.20'/);
-assert.match(h,/v3\.8 開発版⑳/);
-assert.match(sw,/v3820-energy-labels/);
+assert.match(h,/v3\.9 正規版/);
+assert.match(sw,/v39-release/);
 assert.match(h,/v=3\.8\.20-energy-labels/);
 assert.match(a,/let energyView='balance'/);
 assert.match(h,/グラフをタップで食事目標に切り替え/);
