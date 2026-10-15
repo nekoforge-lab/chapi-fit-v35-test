@@ -416,3 +416,9 @@ body > #backToTop.back-to-top[hidden] {display:none!important;}
 .energy-dashboard .energy-metric-stack .energy-unit{font-size:clamp(10px,2.5vw,12px);line-height:1.15}
 @media(max-width:390px){.energy-dashboard .energy-metric-stack .energy-metric strong{font-size:clamp(14px,4vw,19px);letter-spacing:-.8px}}
 @media(max-width:350px){.energy-dashboard .energy-metric-stack .energy-metric strong{font-size:14px;letter-spacing:-.7px}.energy-dashboard .energy-metric-stack .energy-metric-label{font-size:10px}}
+
+/* v3.8.20: energy metric labels stay on one line when they fit; wrap only as needed. */
+.energy-dashboard .energy-metric-stack .energy-metric-label{
+  white-space:normal;max-width:100%;text-align:center;
+  overflow-wrap:anywhere;line-break:strict;
+}
